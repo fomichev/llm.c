@@ -50,3 +50,13 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+/a.out
+/llmc
+/*.data
+/*.meta
+/*.llmc
+/perf.svg
+/perf.data.old
+/out.perf-folded
+/__pycache__
