@@ -33,7 +33,7 @@ def convert_weights(state_dict):
     with open(f'{name}_param.meta', 'wb') as file_meta, open(f'{name}_param.data', 'wb') as file_data:
         for key in state_dict:
             val = state_dict[key]
-            if val.dtype != torch.float32 and val.dtype != torch.bool:
+            if val.dtype != torch.float32 and val.dtype != torch.bool and val.dtype != torch.uint8:
                 raise Exception(f'unexpected dtype {val.dtype} for {key}')
 
             transposed = ''
