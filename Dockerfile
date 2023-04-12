@@ -35,5 +35,4 @@ RUN transformers-cli convert \
 
 WORKDIR /host
 RUN ./gpt2_convert.py /gpt-2/pytorch_$M /gpt-2/models/$M/encoder.json gpt2_$M
-RUN echo 2
 RUN make build
