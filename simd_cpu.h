@@ -61,7 +61,7 @@ typedef struct {
 #define CPU_FV_TANH(DST, LHS) \
 	({ \
 		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = tahnf((LHS).v[i]); \
+			(DST).v[i] = tanhf((LHS).v[i]); \
 		} \
 	})
 

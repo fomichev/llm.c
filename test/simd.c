@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "llm.h"
 #include "test/test.h"
 
@@ -111,6 +113,55 @@ static void bench_div(int rounds, int num)
 	bench_end();
 }
 
+#define BENCHMARK_OP1(PREFIX, TYPE, OP, ROUNDS) \
+	({ \
+		uint64_t start = now(); \
+		memset(ret, 0, num * FT_SIZEOF); \
+		for (int i = 0; i < ROUNDS; i++) { \
+			TYPE vret, vlhs; \
+			for (int j = 0; j < num; j += PREFIX ## _N) { \
+				PREFIX ## _FV_LOAD(vlhs, &lhs[j]); \
+				PREFIX ## _ ## OP(vret, vlhs); \
+				PREFIX ## _FV_STORE(&ret[j], vret); \
+			} \
+		} \
+		now() - start; \
+	})
+
+static void bench_exp(int rounds, int num)
+{
+	FT_TYPE *lhs = bench_alloc(num, 9);
+	FT_TYPE *rhs = bench_alloc(num, 3);
+	FT_TYPE *ret = bench_alloc(num, 0);
+
+	bench_begin("exp");
+
+	uint64_t duration_base = BENCHMARK_OP1(CPU, cpu_fv_t, FV_EXP, rounds);
+	bench_entry("base", rounds, duration_base, 0);
+
+	uint64_t duration_avx = BENCHMARK_OP1(AVX2, avx_fv_t, FV_EXP, rounds);
+	bench_entry("avx", rounds, duration_avx, duration_base);
+
+	bench_end();
+}
+
+static void bench_tanh(int rounds, int num)
+{
+	FT_TYPE *lhs = bench_alloc(num, 9);
+	FT_TYPE *rhs = bench_alloc(num, 3);
+	FT_TYPE *ret = bench_alloc(num, 0);
+
+	bench_begin("tanh");
+
+	uint64_t duration_base = BENCHMARK_OP1(CPU, cpu_fv_t, FV_TANH, rounds);
+	bench_entry("base", rounds, duration_base, 0);
+
+	uint64_t duration_avx = BENCHMARK_OP1(AVX2, avx_fv_t, FV_TANH, rounds);
+	bench_entry("avx", rounds, duration_avx, duration_base);
+
+	bench_end();
+}
+
 int main(int argc, char *argv[])
 {
 	int num = 16 * 10000;
@@ -120,4 +171,6 @@ int main(int argc, char *argv[])
 	bench_sub(rounds, num);
 	bench_mul(rounds, num);
 	bench_div(rounds, num);
+	bench_exp(rounds, num);
+	bench_tanh(rounds, num);
 }
