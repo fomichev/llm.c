@@ -6,6 +6,8 @@
 
 typedef __m256 avx_fv_t;
 
+#define AVX2_N   8
+
 #define AVX2_FV_LOAD(DST, SRC) \
 	({ \
 		(DST) = _mm256_loadu_ps((SRC) + 0); \

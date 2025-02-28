@@ -4,7 +4,6 @@
 
 #define FT_TYPE		float
 #define FT_SIZEOF	sizeof(FT_TYPE)
-#define FT_N		8
 #define FT_ALIGN	(FT_SIZEOF * FT_N)
 #define FT_LEN(x)	(x & ~(FT_ALIGN-1))
 
@@ -14,6 +13,7 @@
 #ifdef __AVX2__
 typedef avx_fv_t fv_t;
 
+#define FT_N            AVX2_N
 #define FV_LOAD			AVX2_FV_LOAD
 #define FV_LOAD1		AVX2_FV_LOAD1
 #define FV_STORE		AVX2_FV_STORE
@@ -27,6 +27,7 @@ typedef avx_fv_t fv_t;
 #else
 typedef cpu_fv_t fv_t;
 
+#define FT_N            CPU_N
 #define FV_LOAD			CPU_FV_LOAD
 #define FV_LOAD1		CPU_FV_LOAD1
 #define FV_STORE		CPU_FV_STORE

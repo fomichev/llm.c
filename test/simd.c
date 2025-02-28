@@ -25,7 +25,7 @@ static void bench_verify(FT_TYPE *vec, size_t num, double value)
 		memset(ret, 0, num * FT_SIZEOF); \
 		for (int i = 0; i < ROUNDS; i++) { \
 			TYPE vret, vlhs, vrhs; \
-			for (int j = 0; j < num; j += FT_N) { \
+			for (int j = 0; j < num; j += PREFIX ## _N) { \
 				PREFIX ## _FV_LOAD(vlhs, &lhs[j]); \
 				PREFIX ## _FV_LOAD(vrhs, &rhs[j]); \
 				PREFIX ## _ ## OP(vret, vlhs, vrhs); \

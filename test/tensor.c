@@ -228,6 +228,9 @@ int main(int argc, char *argv[])
 #ifdef __AVX2__
 	printf("__AVX2__\n");
 #endif
+#ifdef __AVX512F__
+	printf("__AVX512F__\n");
+#endif
 
 	test_ft_to_string();
 	test_ft_add();
