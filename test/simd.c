@@ -47,7 +47,7 @@ static void bench_add(int rounds, int num)
 	bench_verify(ret, num, 5);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX, avx_fv_t, FV_ADD, rounds);
+	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_ADD, rounds);
 	bench_verify(ret, num, 5);
 	bench_entry("avx", rounds, duration_avx, duration_base);
 
@@ -66,7 +66,7 @@ static void bench_sub(int rounds, int num)
 	bench_verify(ret, num, 1);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX, avx_fv_t, FV_SUB, rounds);
+	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_SUB, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("avx", rounds, duration_avx, duration_base);
 
@@ -85,7 +85,7 @@ static void bench_mul(int rounds, int num)
 	bench_verify(ret, num, 6);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX, avx_fv_t, FV_MUL, rounds);
+	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_MUL, rounds);
 	bench_verify(ret, num, 6);
 	bench_entry("avx", rounds, duration_avx, duration_base);
 
@@ -104,7 +104,7 @@ static void bench_div(int rounds, int num)
 	bench_verify(ret, num, 3);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX, avx_fv_t, FV_DIV, rounds);
+	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_DIV, rounds);
 	bench_verify(ret, num, 3);
 	bench_entry("avx", rounds, duration_avx, duration_base);
 

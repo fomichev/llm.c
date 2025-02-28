@@ -6,42 +6,42 @@
 
 typedef __m256 avx_fv_t;
 
-#define AVX_FV_LOAD(DST, SRC) \
+#define AVX2_FV_LOAD(DST, SRC) \
 	({ \
 		(DST) = _mm256_loadu_ps((SRC) + 0); \
 	})
 
-#define AVX_FV_LOAD1(DST, VAL) \
+#define AVX2_FV_LOAD1(DST, VAL) \
 	({ \
 		(DST) = _mm256_set1_ps((VAL)); \
 	})
 
-#define AVX_FV_STORE(DST, SRC) \
+#define AVX2_FV_STORE(DST, SRC) \
 	({ \
 		_mm256_storeu_ps((DST + 0), (SRC)); \
 	})
 
-#define AVX_FV_ADD(DST, LHS, RHS) \
+#define AVX2_FV_ADD(DST, LHS, RHS) \
 	({ \
 		(DST) = _mm256_add_ps((LHS), (RHS)); \
 	})
 
-#define AVX_FV_SUB(DST, LHS, RHS) \
+#define AVX2_FV_SUB(DST, LHS, RHS) \
 	({ \
 		(DST) = _mm256_sub_ps((LHS), (RHS)); \
 	})
 
-#define AVX_FV_MUL(DST, LHS, RHS) \
+#define AVX2_FV_MUL(DST, LHS, RHS) \
 	({ \
 		(DST) = _mm256_mul_ps((LHS), (RHS)); \
 	})
 
-#define AVX_FV_DIV(DST, LHS, RHS) \
+#define AVX2_FV_DIV(DST, LHS, RHS) \
 	({ \
 		(DST) = _mm256_div_ps((LHS), (RHS)); \
 	})
 
-#define AVX_FV_EXP(DST, LHS) \
+#define AVX2_FV_EXP(DST, LHS) \
 	({ \
 		FT_TYPE tmp[16]; \
 		FV_STORE(tmp, LHS); \
@@ -56,7 +56,7 @@ typedef __m256 avx_fv_t;
 		FV_LOAD(DST, tmp); \
 	})
 
-#define AVX_FV_TANH(DST, LHS) \
+#define AVX2_FV_TANH(DST, LHS) \
 	({ \
 		FT_TYPE tmp[16]; \
 		FV_STORE(tmp, LHS); \
@@ -71,7 +71,7 @@ typedef __m256 avx_fv_t;
 		FV_LOAD(DST, tmp); \
 	})
 
-#define AVX_FV_REDUCE_SUM(LHS) \
+#define AVX2_FV_REDUCE_SUM(LHS) \
 	({ \
 		__m128 v4 = _mm_add_ps(_mm256_castps256_ps128((LHS)), \
 				        _mm256_extractf128_ps((LHS), 1)); \

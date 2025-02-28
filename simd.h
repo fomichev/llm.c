@@ -9,21 +9,21 @@
 #define FT_LEN(x)	(x & ~(FT_ALIGN-1))
 
 #include "simd_cpu.h"
-#include "simd_avx.h"
+#include "simd_avx2.h"
 
 #ifdef __AVX2__
 typedef avx_fv_t fv_t;
 
-#define FV_LOAD			AVX_FV_LOAD
-#define FV_LOAD1		AVX_FV_LOAD1
-#define FV_STORE		AVX_FV_STORE
-#define FV_ADD			AVX_FV_ADD
-#define FV_SUB			AVX_FV_SUB
-#define FV_MUL			AVX_FV_MUL
-#define FV_DIV			AVX_FV_DIV
-#define FV_EXP			AVX_FV_EXP
-#define FV_TANH			AVX_FV_TANH
-#define FV_REDUCE_SUM		AVX_FV_REDUCE_SUM
+#define FV_LOAD			AVX2_FV_LOAD
+#define FV_LOAD1		AVX2_FV_LOAD1
+#define FV_STORE		AVX2_FV_STORE
+#define FV_ADD			AVX2_FV_ADD
+#define FV_SUB			AVX2_FV_SUB
+#define FV_MUL			AVX2_FV_MUL
+#define FV_DIV			AVX2_FV_DIV
+#define FV_EXP			AVX2_FV_EXP
+#define FV_TANH			AVX2_FV_TANH
+#define FV_REDUCE_SUM	AVX2_FV_REDUCE_SUM
 #else
 typedef cpu_fv_t fv_t;
 
