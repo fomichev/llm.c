@@ -17,8 +17,14 @@ static FT_TYPE *bench_alloc(size_t num, double value)
 
 static void bench_verify(FT_TYPE *vec, size_t num, double value)
 {
-	for (int i = 0; i < num; i++)
-		assert(vec[i] == value);
+	for (int i = 0; i < num; i++) {
+		double eps = 0.001;
+
+		if (vec[i] >= value + eps || vec[i] <= value - eps) {
+			printf("unexpected value %f vs %f\n", vec[i], value);
+			exit(1);
+		}
+	}
 }
 
 #define BENCHMARK_OP2(PREFIX, TYPE, OP, ROUNDS) \
@@ -49,9 +55,15 @@ static void bench_add(int rounds, int num)
 	bench_verify(ret, num, 5);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_ADD, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(AVX2, avx2_fv_t, FV_ADD, rounds);
 	bench_verify(ret, num, 5);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP2(AVX512, avx512_fv_t, FV_ADD, rounds);
+	bench_verify(ret, num, 5);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }
@@ -68,9 +80,15 @@ static void bench_sub(int rounds, int num)
 	bench_verify(ret, num, 1);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_SUB, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(AVX2, avx2_fv_t, FV_SUB, rounds);
 	bench_verify(ret, num, 1);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP2(AVX512, avx512_fv_t, FV_SUB, rounds);
+	bench_verify(ret, num, 1);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }
@@ -87,9 +105,15 @@ static void bench_mul(int rounds, int num)
 	bench_verify(ret, num, 6);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_MUL, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(AVX2, avx2_fv_t, FV_MUL, rounds);
 	bench_verify(ret, num, 6);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP2(AVX512, avx512_fv_t, FV_MUL, rounds);
+	bench_verify(ret, num, 6);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }
@@ -106,9 +130,15 @@ static void bench_div(int rounds, int num)
 	bench_verify(ret, num, 3);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP2(AVX2, avx_fv_t, FV_DIV, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(AVX2, avx2_fv_t, FV_DIV, rounds);
 	bench_verify(ret, num, 3);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP2(AVX512, avx512_fv_t, FV_DIV, rounds);
+	bench_verify(ret, num, 3);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }
@@ -137,10 +167,18 @@ static void bench_exp(int rounds, int num)
 	bench_begin("exp");
 
 	uint64_t duration_base = BENCHMARK_OP1(CPU, cpu_fv_t, FV_EXP, rounds);
+	bench_verify(ret, num, 8103.083984);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP1(AVX2, avx_fv_t, FV_EXP, rounds);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	uint64_t duration_avx2 = BENCHMARK_OP1(AVX2, avx2_fv_t, FV_EXP, rounds);
+	bench_verify(ret, num, 8103.083984);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP1(AVX512, avx512_fv_t, FV_EXP, rounds);
+	bench_verify(ret, num, 8103.083984);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }
@@ -154,10 +192,18 @@ static void bench_tanh(int rounds, int num)
 	bench_begin("tanh");
 
 	uint64_t duration_base = BENCHMARK_OP1(CPU, cpu_fv_t, FV_TANH, rounds);
+	bench_verify(ret, num, 1);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx = BENCHMARK_OP1(AVX2, avx_fv_t, FV_TANH, rounds);
-	bench_entry("avx", rounds, duration_avx, duration_base);
+	uint64_t duration_avx2 = BENCHMARK_OP1(AVX2, avx2_fv_t, FV_TANH, rounds);
+	bench_verify(ret, num, 1);
+	bench_entry("avx2", rounds, duration_avx2, duration_base);
+
+#ifdef __AVX512F__
+	uint64_t duration_avx512 = BENCHMARK_OP1(AVX512, avx512_fv_t, FV_TANH, rounds);
+	bench_verify(ret, num, 1);
+	bench_entry("avx512", rounds, duration_avx512, duration_avx2);
+#endif
 
 	bench_end();
 }

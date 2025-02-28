@@ -4,7 +4,7 @@
 
 /* https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html */
 
-typedef __m256 avx_fv_t;
+typedef __m256 avx2_fv_t;
 
 #define AVX2_N   8
 
@@ -45,8 +45,8 @@ typedef __m256 avx_fv_t;
 
 #define AVX2_FV_EXP(DST, LHS) \
 	({ \
-		FT_TYPE tmp[16]; \
-		FV_STORE(tmp, LHS); \
+		FT_TYPE tmp[AVX2_N]; \
+		AVX2_FV_STORE(tmp, LHS); \
 		tmp[0] = expf(tmp[0]); \
 		tmp[1] = expf(tmp[1]); \
 		tmp[2] = expf(tmp[2]); \
@@ -55,13 +55,13 @@ typedef __m256 avx_fv_t;
 		tmp[5] = expf(tmp[5]); \
 		tmp[6] = expf(tmp[6]); \
 		tmp[7] = expf(tmp[7]); \
-		FV_LOAD(DST, tmp); \
+		AVX2_FV_LOAD(DST, tmp); \
 	})
 
 #define AVX2_FV_TANH(DST, LHS) \
 	({ \
-		FT_TYPE tmp[16]; \
-		FV_STORE(tmp, LHS); \
+		FT_TYPE tmp[AVX2_N]; \
+		AVX2_FV_STORE(tmp, LHS); \
 		tmp[0] = tanhf(tmp[0]); \
 		tmp[1] = tanhf(tmp[1]); \
 		tmp[2] = tanhf(tmp[2]); \
@@ -70,7 +70,7 @@ typedef __m256 avx_fv_t;
 		tmp[5] = tanhf(tmp[5]); \
 		tmp[6] = tanhf(tmp[6]); \
 		tmp[7] = tanhf(tmp[7]); \
-		FV_LOAD(DST, tmp); \
+		AVX2_FV_LOAD(DST, tmp); \
 	})
 
 #define AVX2_FV_REDUCE_SUM(LHS) \
