@@ -1,16 +1,25 @@
 #BLAS_CFLAGS=$(shell pkg-config --cflags cblas)
-#BLAS_LDFLAGS=$(shell pkg-config --libs cblas) -lm
+#BLAS_LDFLAGS=$(shell pkg-config --libs cblas)
+
+# OpenBLAS
+BLAS_CFLAGS=$(shell pkg-config --cflags openblas)
+BLAS_LDFLAGS=$(shell pkg-config --libs openblas)
+
+# Intel MKL
+#BLAS_CFLAGS=$(shell pkg-config --cflags mkl-dynamic-lp64-iomp)
+#BLAS_LDFLAGS=$(shell pkg-config --libs mkl-dynamic-lp64-iomp)
+
+# ROCm
+#BLAS_CFLAGS=-I/opt/rocm/include
+#BLAS_LDFLAGS=-L/opt/rocm/lib -lrocblas -Dcblas_sgemm=rocblas_sgemm
 
 #export SRAND48_SEED=1337
-
-BLAS_CFLAGS=$(shell pkg-config --cflags mkl-dynamic-lp64-iomp)
-BLAS_LDFLAGS=$(shell pkg-config --libs mkl-dynamic-lp64-iomp)
 
 O=3
 GPT2_EVAL_ROUNDS?=10
 
 CFLAGS=$(BLAS_CFLAGS) -I. -O$(O) -march=native -DGPT2_EVAL_ROUNDS=$(GPT2_EVAL_ROUNDS) -rdynamic
-LDFLAGS=$(BLAS_LDFLAGS)
+LDFLAGS=$(BLAS_LDFLAGS) -lm
 CC=clang
 
 M=124M
@@ -29,9 +38,9 @@ build:
 
 check:
 	$(MAKE) build
-	./llmc gpt2_$(M).llmc
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c && ./a.out
+	./llmc gpt2_$(M).llmc
 
 flamegraph:
 	$(MAKE) build O=0 GPT2_EVAL_ROUNDS=100
