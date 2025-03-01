@@ -127,9 +127,9 @@ bool file_is_eof(struct file *f)
 	return f->pos >= file_len(f);
 }
 
-ft_t *file_ft(struct file *f, size_t ndim, ...)
+tensor_t *file_tensor(struct file *f, size_t ndim, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	size_t len = 1;
 	va_list ap;
 	size_t dim;
@@ -138,7 +138,7 @@ ft_t *file_ft(struct file *f, size_t ndim, ...)
 	assert(ndim >= 1 && ndim <= 4);
 
 	len = file_at_len(f, f->pos);
-	t = ft_new_mapped(file_at(f, f->pos), len);
+	t = tensor_new_mapped(file_at(f, f->pos), len);
 
 	f->pos++;
 
@@ -150,16 +150,16 @@ ft_t *file_ft(struct file *f, size_t ndim, ...)
 
 	switch (ndim) {
 	case 1:
-		ft_reshape_1d(t, d1);
+		tensor_reshape_1d(t, d1);
 		break;
 	case 2:
-		ft_reshape_2d(t, d1, d2);
+		tensor_reshape_2d(t, d1, d2);
 		break;
 	case 3:
-		ft_reshape_3d(t, d1, d2, d3);
+		tensor_reshape_3d(t, d1, d2, d3);
 		break;
 	case 4:
-		ft_reshape_4d(t, d1, d2, d3, d4);
+		tensor_reshape_4d(t, d1, d2, d3, d4);
 		break;
 	}
 	va_end(ap);

@@ -21,55 +21,55 @@ struct gpt2 {
 
 	scalar_t hlen_sq;
 
-	const ft_t *wte;
-	const ft_t *wpe;
+	const tensor_t *wte;
+	const tensor_t *wpe;
 	struct gpt2h {
-		const ft_t *ln_1_weight;
-		const ft_t *ln_1_bias;
+		const tensor_t *ln_1_weight;
+		const tensor_t *ln_1_bias;
 
 		struct gpt2attn {
-			const ft_t *bias;
-			const ft_t *masked_bias;
+			const tensor_t *bias;
+			const tensor_t *masked_bias;
 
-			const ft_t *c_attn_weight;
-			const ft_t *c_attn_bias;
+			const tensor_t *c_attn_weight;
+			const tensor_t *c_attn_bias;
 
-			const ft_t *c_proj_weight;
-			const ft_t *c_proj_bias;
+			const tensor_t *c_proj_weight;
+			const tensor_t *c_proj_bias;
 		} attn;
 
-		const ft_t *ln_2_weight;
-		const ft_t *ln_2_bias;
+		const tensor_t *ln_2_weight;
+		const tensor_t *ln_2_bias;
 
 		struct gpt2mlp {
-			const ft_t *c_fc_weight;
-			const ft_t *c_fc_bias;
-			const ft_t *c_proj_weight;
-			const ft_t *c_proj_bias;
+			const tensor_t *c_fc_weight;
+			const tensor_t *c_fc_bias;
+			const tensor_t *c_proj_weight;
+			const tensor_t *c_proj_bias;
 		} mlp;
 	} hl[48]; /* to fit gpt2-xl */
-	const ft_t *ln_f_weight;
-	const ft_t *ln_f_bias;
+	const tensor_t *ln_f_weight;
+	const tensor_t *ln_f_bias;
 
 	struct {
-		ft_t *output;
-		ft_t *tokens;
-		ft_t *positions;
-		ft_t *tokens_attn;
-		ft_t *qh; /* heads X from all tokens */
-		ft_t *kh; /* heads X from all tokens */
-		ft_t *vh; /* heads X from all tokens */
-		ft_t *masked_attn;
-		ft_t *attn;
-		ft_t *attn_residual;
-		ft_t *mlp_fc;
-		ft_t *logits;
+		tensor_t *output;
+		tensor_t *tokens;
+		tensor_t *positions;
+		tensor_t *tokens_attn;
+		tensor_t *qh; /* heads X from all tokens */
+		tensor_t *kh; /* heads X from all tokens */
+		tensor_t *vh; /* heads X from all tokens */
+		tensor_t *masked_attn;
+		tensor_t *attn;
+		tensor_t *attn_residual;
+		tensor_t *mlp_fc;
+		tensor_t *logits;
 	} state;
 
 	struct {
 		struct {
-			ft_t *k;
-			ft_t *v;
+			tensor_t *k;
+			tensor_t *v;
 		} hl[48];
 		size_t size;
 		bool use;
@@ -106,59 +106,59 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 
 	assert(H * HLEN == E);
 
-	model->wte = file_ft(f, 2, model->vocab_len, E);
-	model->wpe = file_ft(f, 2, C, E);
+	model->wte = file_tensor(f, 2, model->vocab_len, E);
+	model->wpe = file_tensor(f, 2, C, E);
 
 	for (size_t i = 0; i < model->layers; i++) {
-		model->hl[i].ln_1_weight = file_ft(f, 1, E);
-		model->hl[i].ln_1_bias = file_ft(f, 1, E);
-		model->hl[i].attn.bias = file_ft(f, 4, 1, 1, C, C);
-		model->hl[i].attn.masked_bias = file_ft(f, 1, 1);
+		model->hl[i].ln_1_weight = file_tensor(f, 1, E);
+		model->hl[i].ln_1_bias = file_tensor(f, 1, E);
+		model->hl[i].attn.bias = file_tensor(f, 4, 1, 1, C, C);
+		model->hl[i].attn.masked_bias = file_tensor(f, 1, 1);
 		if (model->transposed)
-			model->hl[i].attn.c_attn_weight = file_ft(f, 2, E * 3, E);
+			model->hl[i].attn.c_attn_weight = file_tensor(f, 2, E * 3, E);
 		else
-			model->hl[i].attn.c_attn_weight = file_ft(f, 2, E, E * 3);
-		model->hl[i].attn.c_attn_bias = file_ft(f, 1, E * 3);
+			model->hl[i].attn.c_attn_weight = file_tensor(f, 2, E, E * 3);
+		model->hl[i].attn.c_attn_bias = file_tensor(f, 1, E * 3);
 		if (model->transposed)
-			model->hl[i].attn.c_proj_weight = file_ft(f, 2, E, E);
+			model->hl[i].attn.c_proj_weight = file_tensor(f, 2, E, E);
 		else
-			model->hl[i].attn.c_proj_weight = file_ft(f, 2, E, E);
-		model->hl[i].attn.c_proj_bias = file_ft(f, 1, E);
-		model->hl[i].ln_2_weight = file_ft(f, 1, E);
-		model->hl[i].ln_2_bias = file_ft(f, 1, E);
+			model->hl[i].attn.c_proj_weight = file_tensor(f, 2, E, E);
+		model->hl[i].attn.c_proj_bias = file_tensor(f, 1, E);
+		model->hl[i].ln_2_weight = file_tensor(f, 1, E);
+		model->hl[i].ln_2_bias = file_tensor(f, 1, E);
 		if (model->transposed)
-			model->hl[i].mlp.c_fc_weight = file_ft(f, 2, E * 4, E);
+			model->hl[i].mlp.c_fc_weight = file_tensor(f, 2, E * 4, E);
 		else
-			model->hl[i].mlp.c_fc_weight = file_ft(f, 2, E, E * 4);
-		model->hl[i].mlp.c_fc_bias = file_ft(f, 1, E * 4);
+			model->hl[i].mlp.c_fc_weight = file_tensor(f, 2, E, E * 4);
+		model->hl[i].mlp.c_fc_bias = file_tensor(f, 1, E * 4);
 		if (model->transposed)
-			model->hl[i].mlp.c_proj_weight = file_ft(f, 2, E, E * 4);
+			model->hl[i].mlp.c_proj_weight = file_tensor(f, 2, E, E * 4);
 		else
-			model->hl[i].mlp.c_proj_weight = file_ft(f, 2, E * 4, E);
-		model->hl[i].mlp.c_proj_bias = file_ft(f, 1, E);
+			model->hl[i].mlp.c_proj_weight = file_tensor(f, 2, E * 4, E);
+		model->hl[i].mlp.c_proj_bias = file_tensor(f, 1, E);
 	}
 
-	model->ln_f_weight = file_ft(f, 1, E);
-	model->ln_f_bias = file_ft(f, 1, E);
+	model->ln_f_weight = file_tensor(f, 1, E);
+	model->ln_f_bias = file_tensor(f, 1, E);
 
 	assert(file_is_eof(f));
 
-	model->state.output = ft_new_zero(2, C, E);
-	model->state.tokens = ft_new_zero(2, C, E);
-	model->state.positions = ft_new_zero(2, C, E);
-	model->state.tokens_attn = ft_new_zero(2, C, E * 3);
-	model->state.qh = ft_new_zero(2, C, HLEN);
-	model->state.kh = ft_new_zero(2, C, HLEN);
-	model->state.vh = ft_new_zero(2, C, HLEN);
-	model->state.masked_attn = ft_new_zero(2, C, C);
-	model->state.attn = ft_new_zero(2, C, E);
-	model->state.attn_residual = ft_new_zero(2, C, E);
-	model->state.mlp_fc = ft_new_zero(2, C, E * 4);
-	model->state.logits = ft_new_zero(1, model->vocab_len);
+	model->state.output = tensor_new_zero(2, C, E);
+	model->state.tokens = tensor_new_zero(2, C, E);
+	model->state.positions = tensor_new_zero(2, C, E);
+	model->state.tokens_attn = tensor_new_zero(2, C, E * 3);
+	model->state.qh = tensor_new_zero(2, C, HLEN);
+	model->state.kh = tensor_new_zero(2, C, HLEN);
+	model->state.vh = tensor_new_zero(2, C, HLEN);
+	model->state.masked_attn = tensor_new_zero(2, C, C);
+	model->state.attn = tensor_new_zero(2, C, E);
+	model->state.attn_residual = tensor_new_zero(2, C, E);
+	model->state.mlp_fc = tensor_new_zero(2, C, E * 4);
+	model->state.logits = tensor_new_zero(1, model->vocab_len);
 
 	for (size_t i = 0; i < model->layers; i++) {
-		model->cache.hl[i].k = ft_new_zero(2, C, H * HLEN);
-		model->cache.hl[i].v = ft_new_zero(2, C, H * HLEN);
+		model->cache.hl[i].k = tensor_new_zero(2, C, H * HLEN);
+		model->cache.hl[i].v = tensor_new_zero(2, C, H * HLEN);
 		model->cache.use = true;
 		model->cache.size = 0;
 	}
@@ -191,24 +191,24 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 }
 
 static void layer_norm(
-	ft_t *ln,
-	ft_t *tmp_mat,
-	const ft_t *weight,
-	const ft_t *bias)
+	tensor_t *ln,
+	tensor_t *tmp_mat,
+	const tensor_t *weight,
+	const tensor_t *bias)
 {
-	for (size_t i = 0; i < ft_len(tmp_mat); i++) {
-		ft_t row;
+	for (size_t i = 0; i < tensor_len(tmp_mat); i++) {
+		tensor_t row;
 
-		ft_at(tmp_mat, i, &row);
+		tensor_at(tmp_mat, i, &row);
 
-		scalar_t row_mean = ft_mean(&row);
+		scalar_t row_mean = tensor_mean(&row);
 
 		vector_t s, e;
 
 		vector_set(&s, 0);
 		vector_set(&e, row_mean);
 
-		size_t len = ft_len(&row);
+		size_t len = tensor_len(&row);
 
 		for (size_t j = 0; j < vector_chunks(len); j += VECTOR_CHUNK) {
 			vector_t tmp;
@@ -242,18 +242,18 @@ static void layer_norm(
 			row.data[j] = (row.data[j] - row_mean) / var_sqrt;
 		}
 
-		ft_t ln_row;
-		ft_at(ln, i, &ln_row);
+		tensor_t ln_row;
+		tensor_at(ln, i, &ln_row);
 
-		ft_mul(&ln_row, &row, weight);
-		ft_add(&ln_row, &ln_row, bias);
+		tensor_mul(&ln_row, &row, weight);
+		tensor_add(&ln_row, &ln_row, bias);
 	}
 }
 
 #define GELU_K1 0.7978845608028654 /* (sqrt(2.0 / M_PI)) */
 #define GELU_K2 0.044715
 
-static void gelua(ft_t *t)
+static void gelua(tensor_t *t)
 {
 	assert(t->totlen % VECTOR_CHUNK == 0);
 
@@ -305,9 +305,9 @@ static void gelua(ft_t *t)
 	}
 }
 
-static void softmax_1d(ft_t *t)
+static void softmax_1d(tensor_t *t)
 {
-	size_t len = ft_len(t);
+	size_t len = tensor_len(t);
 	vector_t vsum, vmax;
 	scalar_t max;
 
@@ -315,7 +315,7 @@ static void softmax_1d(ft_t *t)
 
 	/* https://discuss.pytorch.org/t/how-to-implement-the-exactly-same-softmax-as-f-softmax-by-pytorch/44263/2 */
 
-	max = ft_max(t, NULL);
+	max = tensor_max(t, NULL);
 
 	vector_set(&vsum, 0);
 	vector_set(&vmax, max);
@@ -348,27 +348,27 @@ static void softmax_1d(ft_t *t)
 	}
 }
 
-static void softmax_2d(ft_t *t)
+static void softmax_2d(tensor_t *t)
 {
 	assert(t->ndim == 2);
 
-	for (size_t i = 0; i < ft_len(t); i++) {
-		ft_t row;
+	for (size_t i = 0; i < tensor_len(t); i++) {
+		tensor_t row;
 
-		ft_at(t, i, &row);
+		tensor_at(t, i, &row);
 		softmax_1d(&row);
 	}
 }
 
-static void transformer(struct gpt2 *model, ft_t *input, ft_t *output, size_t l)
+static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l)
 {
-	ft_t *qh = model->state.qh;
-	ft_t *kh = model->state.kh;
-	ft_t *vh = model->state.vh;
-	ft_t *masked_attn = model->state.masked_attn;
+	tensor_t *qh = model->state.qh;
+	tensor_t *kh = model->state.kh;
+	tensor_t *vh = model->state.vh;
+	tensor_t *masked_attn = model->state.masked_attn;
 
 	size_t C = model->context;
-	size_t T = ft_len(input);
+	size_t T = tensor_len(input);
 	size_t AT = T; /* attention dimensionality for KV cache */
 	size_t H = model->heads;
 	size_t HLEN = model->head_len;
@@ -379,85 +379,85 @@ static void transformer(struct gpt2 *model, ft_t *input, ft_t *output, size_t l)
 		AT = model->cache.size + 1;
 	}
 
-	ft_resize(qh, T);
-	ft_resize(kh, AT);
-	ft_resize(vh, AT);
-	ft_resize_2d(masked_attn, AT, AT);
+	tensor_resize(qh, T);
+	tensor_resize(kh, AT);
+	tensor_resize(vh, AT);
+	tensor_resize_2d(masked_attn, AT, AT);
 
 	for (size_t h_idx = 0; h_idx < H; h_idx++) {
 		if (model->cache.use) {
-			ft_t tok, q;
-			ft_at(input, 0, &tok);
-			ft_reshape_2d(&tok, 3, E);
-			ft_at(&tok, 0, &q);
-			ft_reshape_2d(&q, H, HLEN);
-			ft_at(&q, h_idx, &q);
-			ft_set_inner(qh, 0, &q);
+			tensor_t tok, q;
+			tensor_at(input, 0, &tok);
+			tensor_reshape_2d(&tok, 3, E);
+			tensor_at(&tok, 0, &q);
+			tensor_reshape_2d(&q, H, HLEN);
+			tensor_at(&q, h_idx, &q);
+			tensor_set_inner(qh, 0, &q);
 		}
 
 		for (size_t t_idx = 0; t_idx < AT; t_idx++) {
-			ft_t tok;
-			ft_at(input, model->cache.use ? 0 : t_idx, &tok);
-			ft_assert_1d(&tok, 3 * E);
-			ft_reshape_2d(&tok, 3, E);
+			tensor_t tok;
+			tensor_at(input, model->cache.use ? 0 : t_idx, &tok);
+			tensor_assert_1d(&tok, 3 * E);
+			tensor_reshape_2d(&tok, 3, E);
 
 			if (!model->cache.use) {
-				ft_t q;
-				ft_at(&tok, 0, &q);
-				ft_reshape_2d(&q, H, HLEN);
-				ft_at(&q, h_idx, &q);
-				ft_set_inner(qh, t_idx, &q);
+				tensor_t q;
+				tensor_at(&tok, 0, &q);
+				tensor_reshape_2d(&q, H, HLEN);
+				tensor_at(&q, h_idx, &q);
+				tensor_set_inner(qh, t_idx, &q);
 			}
 
-			ft_t k;
+			tensor_t k;
 			if (model->cache.use && t_idx + 1 != AT) {
-				ft_at(model->cache.hl[l].k, t_idx, &k);
-				ft_reshape_2d(&k, H, HLEN);
-				ft_at(&k, h_idx, &k);
+				tensor_at(model->cache.hl[l].k, t_idx, &k);
+				tensor_reshape_2d(&k, H, HLEN);
+				tensor_at(&k, h_idx, &k);
 			} else {
-				ft_at(&tok, 1, &k);
-				ft_reshape_2d(&k, H, HLEN);
-				ft_at(&k, h_idx, &k);
+				tensor_at(&tok, 1, &k);
+				tensor_reshape_2d(&k, H, HLEN);
+				tensor_at(&k, h_idx, &k);
 
 				if (model->cache.use) {
-					ft_t ck;
+					tensor_t ck;
 					assert(t_idx < C); /* TODO: handle overflow */
-					ft_at(model->cache.hl[l].k, t_idx, &ck);
-					ft_reshape_2d(&ck, H, HLEN);
-					ft_set_inner(&ck, h_idx, &k);
+					tensor_at(model->cache.hl[l].k, t_idx, &ck);
+					tensor_reshape_2d(&ck, H, HLEN);
+					tensor_set_inner(&ck, h_idx, &k);
 				}
 			}
-			ft_set_inner(kh, t_idx, &k);
+			tensor_set_inner(kh, t_idx, &k);
 
-			ft_t v;
+			tensor_t v;
 			if (model->cache.use && t_idx + 1 != AT) {
-				ft_at(model->cache.hl[l].v, t_idx, &v);
-				ft_reshape_2d(&v, H, HLEN);
-				ft_at(&v, h_idx, &v);
-				ft_assert_1d(&v, HLEN);
+				tensor_at(model->cache.hl[l].v, t_idx, &v);
+				tensor_reshape_2d(&v, H, HLEN);
+				tensor_at(&v, h_idx, &v);
+				tensor_assert_1d(&v, HLEN);
 			} else {
-				ft_at(&tok, 2, &v);
-				ft_reshape_2d(&v, H, HLEN);
-				ft_at(&v, h_idx, &v);
-				ft_assert_1d(&v, HLEN);
+				tensor_at(&tok, 2, &v);
+				tensor_reshape_2d(&v, H, HLEN);
+				tensor_at(&v, h_idx, &v);
+				tensor_assert_1d(&v, HLEN);
 
 				if (model->cache.use) {
-					ft_t cv;
+					tensor_t cv;
 					assert(t_idx < C); /* TODO: handle overflow */
-					ft_at(model->cache.hl[l].v, t_idx, &cv);
-					ft_reshape_2d(&cv, H, HLEN);
-					ft_set_inner(&cv, h_idx, &v);
+					tensor_at(model->cache.hl[l].v, t_idx, &cv);
+					tensor_reshape_2d(&cv, H, HLEN);
+					tensor_set_inner(&cv, h_idx, &v);
 				}
 			}
-			ft_set_inner(vh, t_idx, &v);
+			tensor_set_inner(vh, t_idx, &v);
 		}
 
-		ft_assert_2d(qh, T, HLEN);
-		ft_assert_2d(kh, AT, HLEN);
-		ft_assert_2d(vh, AT, HLEN);
-		ft_mma_transposed_2x2(masked_attn, qh, kh, NULL);
-		ft_assert_2d(masked_attn, T, AT);
-		ft_div_scalar(masked_attn, masked_attn, model->hlen_sq);
+		tensor_assert_2d(qh, T, HLEN);
+		tensor_assert_2d(kh, AT, HLEN);
+		tensor_assert_2d(vh, AT, HLEN);
+		tensor_mma_transposed_2x2(masked_attn, qh, kh, NULL);
+		tensor_assert_2d(masked_attn, T, AT);
+		tensor_div_scalar(masked_attn, masked_attn, model->hlen_sq);
 
 		if (!model->cache.use) {
 			/* attention mask */
@@ -469,57 +469,57 @@ static void transformer(struct gpt2 *model, ft_t *input, ft_t *output, size_t l)
 
 		softmax_2d(masked_attn);
 
-		ft_assert_2d(masked_attn, T, AT);
-		ft_assert_2d(vh, AT, HLEN);
+		tensor_assert_2d(masked_attn, T, AT);
+		tensor_assert_2d(vh, AT, HLEN);
 
-		ft_mma_2x2(qh, masked_attn, vh, NULL);
-		ft_assert_2d(qh, T, HLEN);
+		tensor_mma_2x2(qh, masked_attn, vh, NULL);
+		tensor_assert_2d(qh, T, HLEN);
 
 		for (size_t t_idx = model->cache.use ? AT - 1 : 0; t_idx < AT; t_idx++) {
-			ft_t row;
-			ft_at(qh, model->cache.use ? 0 : t_idx, &row);
-			ft_assert_1d(&row, HLEN);
+			tensor_t row;
+			tensor_at(qh, model->cache.use ? 0 : t_idx, &row);
+			tensor_assert_1d(&row, HLEN);
 
-			ft_t attn_tok;
-			ft_at(output, model->cache.use ? 0 : t_idx, &attn_tok);
-			ft_reshape_2d(&attn_tok, H, HLEN);
-			ft_set_inner(&attn_tok, h_idx, &row);
+			tensor_t attn_tok;
+			tensor_at(output, model->cache.use ? 0 : t_idx, &attn_tok);
+			tensor_reshape_2d(&attn_tok, H, HLEN);
+			tensor_set_inner(&attn_tok, h_idx, &row);
 		}
 	}
 }
 
-static void __gpt2_eval(struct gpt2 *model, int *tok, int *pos, size_t T, ft_t *output)
+static void __gpt2_eval(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output)
 {
 	size_t E = model->embeddings;
 	size_t C = model->context;
 
-	ft_t *tokens = model->state.tokens;
-	ft_t *positions = model->state.positions;
-	ft_t *tokens_attn = model->state.tokens_attn;
+	tensor_t *tokens = model->state.tokens;
+	tensor_t *positions = model->state.positions;
+	tensor_t *tokens_attn = model->state.tokens_attn;
 
-	ft_t *attn = model->state.attn;
-	ft_t *attn_residual = model->state.attn_residual;
+	tensor_t *attn = model->state.attn;
+	tensor_t *attn_residual = model->state.attn_residual;
 
-	ft_t *mlp_fc = model->state.mlp_fc;
+	tensor_t *mlp_fc = model->state.mlp_fc;
 
 	/* reuse some memory */
 	/* {{{ */
-	ft_t *hidden_state = tokens;
-	ft_t *tmp_mat = positions;
+	tensor_t *hidden_state = tokens;
+	tensor_t *tmp_mat = positions;
 	/* }}} */
 
-	ft_pick_rows(tokens, model->wte, tok, T);
-	ft_assert_2d(tokens, T, E);
+	tensor_pick_rows(tokens, model->wte, tok, T);
+	tensor_assert_2d(tokens, T, E);
 
-	ft_pick_rows(positions, model->wpe, pos, T);
-	ft_assert_2d(positions, T, E);
+	tensor_pick_rows(positions, model->wpe, pos, T);
+	tensor_assert_2d(positions, T, E);
 
-	ft_add(tokens, tokens, positions);
+	tensor_add(tokens, tokens, positions);
 
-	ft_resize(attn, T);
-	ft_resize(attn_residual, T);
-	ft_resize(mlp_fc, T);
-	ft_resize(output, T);
+	tensor_resize(attn, T);
+	tensor_resize(attn_residual, T);
+	tensor_resize(mlp_fc, T);
+	tensor_resize(output, T);
 
 	profiler_record(0, "pick");
 
@@ -528,52 +528,52 @@ static void __gpt2_eval(struct gpt2 *model, int *tok, int *pos, size_t T, ft_t *
 		struct gpt2attn *a = &hl->attn;
 		struct gpt2mlp *mlp = &hl->mlp;
 
-		ft_copy(tmp_mat, hidden_state);
+		tensor_copy(tmp_mat, hidden_state);
 		layer_norm(output, tmp_mat, hl->ln_1_weight, hl->ln_1_bias);
 		profiler_record(1, "ln1");
 
 		if (model->transposed)
-			ft_mma_transposed_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
+			tensor_mma_transposed_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
 		else
-			ft_mma_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
-		ft_assert_2d(tokens_attn, T, 3 * E);
+			tensor_mma_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
+		tensor_assert_2d(tokens_attn, T, 3 * E);
 		profiler_record(2, "c_attn");
 
 		transformer(model, tokens_attn, attn, l);
 		profiler_record(3, "xformer");
 
 		if (model->transposed)
-			ft_mma_transposed_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
+			tensor_mma_transposed_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
 		else
-			ft_mma_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
+			tensor_mma_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
 		profiler_record(4, "c_proj");
 
-		ft_assert_2d(tmp_mat, T, E);
-		ft_assert_2d(hidden_state, T, E);
-		ft_add(tmp_mat, tmp_mat, hidden_state);
-		ft_copy(attn_residual, tmp_mat);
+		tensor_assert_2d(tmp_mat, T, E);
+		tensor_assert_2d(hidden_state, T, E);
+		tensor_add(tmp_mat, tmp_mat, hidden_state);
+		tensor_copy(attn_residual, tmp_mat);
 		profiler_record(5, "c_proj residual");
 
 		layer_norm(output, tmp_mat, hl->ln_2_weight, hl->ln_2_bias);
-		ft_assert_2d(output, T, E);
+		tensor_assert_2d(output, T, E);
 		profiler_record(6, "ln2");
 
 		if (model->transposed)
-			ft_mma_transposed_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
+			tensor_mma_transposed_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
 		else
-			ft_mma_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
-		ft_assert_2d(mlp_fc, T, E * 4);
+			tensor_mma_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
+		tensor_assert_2d(mlp_fc, T, E * 4);
 		profiler_record(7, "c_fc");
 
 		gelua(mlp_fc);
 		profiler_record(8, "gelua");
 
 		if (model->transposed)
-			ft_mma_transposed_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
+			tensor_mma_transposed_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
 		else
-			ft_mma_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
+			tensor_mma_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
 		profiler_record(9, "c_proj");
-		ft_add(hidden_state, hidden_state, attn_residual);
+		tensor_add(hidden_state, hidden_state, attn_residual);
 		profiler_record(10, "c_proj residual");
 	}
 
@@ -581,7 +581,7 @@ static void __gpt2_eval(struct gpt2 *model, int *tok, int *pos, size_t T, ft_t *
 	profiler_record(11, "ln2 residual");
 }
 
-static void gpt2_eval(struct gpt2 *model, int tok, int pos, ft_t *output)
+static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 {
 	assert(model->cache.use);
 
@@ -615,8 +615,8 @@ void gpt2_test_no_cache(struct gpt2 *model)
 	for (int i = 0; i < T; i++)
 		pos[i] = i;
 
-	ft_t *output = model->state.output;
-	ft_t *logits = model->state.logits;
+	tensor_t *output = model->state.output;
+	tensor_t *logits = model->state.logits;
 
 	gpt2_use_cache(model, false);
 
@@ -624,19 +624,19 @@ void gpt2_test_no_cache(struct gpt2 *model)
 	while (num--) {
 		__gpt2_eval(model, tok, pos, T, output);
 
-		ft_t last_row;
-		ft_at(output, T - 1, &last_row);
+		tensor_t last_row;
+		tensor_at(output, T - 1, &last_row);
 
 		size_t nextch = 0;
-		ft_assert_1d(logits, model->vocab_len);
-		ft_assert_1d(&last_row, E);
-		ft_assert_2d(model->wte, model->vocab_len, E);
-		ft_reshape_2d(&last_row, 1, E);
-		ft_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
+		tensor_assert_1d(logits, model->vocab_len);
+		tensor_assert_1d(&last_row, E);
+		tensor_assert_2d(model->wte, model->vocab_len, E);
+		tensor_reshape_2d(&last_row, 1, E);
+		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 		profiler_record(12, "wte");
-		ft_reshape_1d(logits, model->vocab_len);
+		tensor_reshape_1d(logits, model->vocab_len);
 		softmax_1d(logits);
-		scalar_t mx = ft_max(logits, &nextch);
+		scalar_t mx = tensor_max(logits, &nextch);
 		profiler_record(13, "max");
 
 		tok[T] = nextch;
@@ -666,8 +666,8 @@ void gpt2_test_cache(struct gpt2 *model)
 	int tok = 0;
 	int pos = 0;
 
-	ft_t *output = model->state.output;
-	ft_t *logits = model->state.logits;
+	tensor_t *output = model->state.output;
+	tensor_t *logits = model->state.logits;
 
 	gpt2_use_cache(model, true);
 
@@ -682,18 +682,18 @@ void gpt2_test_cache(struct gpt2 *model)
 
 		gpt2_eval(model, tok, pos, output);
 
-		ft_t last_row;
-		ft_at(output, 0, &last_row);
+		tensor_t last_row;
+		tensor_at(output, 0, &last_row);
 
-		ft_assert_1d(logits, model->vocab_len);
-		ft_assert_1d(&last_row, E);
-		ft_assert_2d(model->wte, model->vocab_len, E);
-		ft_reshape_2d(&last_row, 1, E);
-		ft_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
+		tensor_assert_1d(logits, model->vocab_len);
+		tensor_assert_1d(&last_row, E);
+		tensor_assert_2d(model->wte, model->vocab_len, E);
+		tensor_reshape_2d(&last_row, 1, E);
+		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 		profiler_record(12, "wte");
-		ft_reshape_1d(logits, model->vocab_len);
+		tensor_reshape_1d(logits, model->vocab_len);
 		softmax_1d(logits);
-		scalar_t mx = ft_max(logits, &nextch);
+		scalar_t mx = tensor_max(logits, &nextch);
 		profiler_record(13, "max");
 
 		if (i >= ARRAY_SIZE(inp) - 1)
@@ -725,8 +725,8 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 
 	uint64_t total_begin = profiler_now();
 
-	ft_t *output = model->state.output;
-	ft_t *logits = model->state.logits;
+	tensor_t *output = model->state.output;
+	tensor_t *logits = model->state.logits;
 
 	while ((tok = vocab_decode(vocab, text, &tok_sz)) != -1) {
 		printf("%.*s", tok_sz, text);
@@ -738,15 +738,15 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	}
 
 	size_t nextch = 0;
-	ft_t last_row;
+	tensor_t last_row;
 
-	ft_at(output, 0, &last_row);
-	ft_assert_1d(logits, model->vocab_len);
-	ft_assert_1d(&last_row, E);
-	ft_assert_2d(model->wte, model->vocab_len, E);
-	ft_reshape_2d(&last_row, 1, E);
-	ft_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
-	ft_reshape_1d(logits, model->vocab_len);
+	tensor_at(output, 0, &last_row);
+	tensor_assert_1d(logits, model->vocab_len);
+	tensor_assert_1d(&last_row, E);
+	tensor_assert_2d(model->wte, model->vocab_len, E);
+	tensor_reshape_2d(&last_row, 1, E);
+	tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
+	tensor_reshape_1d(logits, model->vocab_len);
 	softmax_1d(logits);
 	tok = f(ctx, logits);
 
@@ -755,13 +755,13 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 		gpt2_eval(model, tok, pos, output);
 		pos++;
 
-		ft_at(output, 0, &last_row);
-		ft_assert_1d(logits, model->vocab_len);
-		ft_assert_1d(&last_row, E);
-		ft_assert_2d(model->wte, model->vocab_len, E);
-		ft_reshape_2d(&last_row, 1, E);
-		ft_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
-		ft_reshape_1d(logits, model->vocab_len);
+		tensor_at(output, 0, &last_row);
+		tensor_assert_1d(logits, model->vocab_len);
+		tensor_assert_1d(&last_row, E);
+		tensor_assert_2d(model->wte, model->vocab_len, E);
+		tensor_reshape_2d(&last_row, 1, E);
+		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
+		tensor_reshape_1d(logits, model->vocab_len);
 		softmax_1d(logits);
 		tok = f(ctx, logits);
 
@@ -779,39 +779,39 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 
 void gpt2_close(struct gpt2 *model)
 {
-	ft_free_mapped(model->wte);
-	ft_free_mapped(model->wpe);
+	tensor_free_mapped(model->wte);
+	tensor_free_mapped(model->wpe);
 	for (size_t i = 0; i < model->layers; i++) {
-		ft_free_mapped(model->hl[i].ln_1_weight);
-		ft_free_mapped(model->hl[i].ln_1_bias);
-		ft_free_mapped(model->hl[i].attn.bias);
-		ft_free_mapped(model->hl[i].attn.masked_bias);
-		ft_free_mapped(model->hl[i].attn.c_attn_weight);
-		ft_free_mapped(model->hl[i].attn.c_attn_bias);
-		ft_free_mapped(model->hl[i].attn.c_proj_weight);
-		ft_free_mapped(model->hl[i].attn.c_proj_bias);
-		ft_free_mapped(model->hl[i].ln_2_weight);
-		ft_free_mapped(model->hl[i].ln_2_bias);
-		ft_free_mapped(model->hl[i].mlp.c_fc_weight);
-		ft_free_mapped(model->hl[i].mlp.c_fc_bias);
-		ft_free_mapped(model->hl[i].mlp.c_proj_weight);
-		ft_free_mapped(model->hl[i].mlp.c_proj_bias);
+		tensor_free_mapped(model->hl[i].ln_1_weight);
+		tensor_free_mapped(model->hl[i].ln_1_bias);
+		tensor_free_mapped(model->hl[i].attn.bias);
+		tensor_free_mapped(model->hl[i].attn.masked_bias);
+		tensor_free_mapped(model->hl[i].attn.c_attn_weight);
+		tensor_free_mapped(model->hl[i].attn.c_attn_bias);
+		tensor_free_mapped(model->hl[i].attn.c_proj_weight);
+		tensor_free_mapped(model->hl[i].attn.c_proj_bias);
+		tensor_free_mapped(model->hl[i].ln_2_weight);
+		tensor_free_mapped(model->hl[i].ln_2_bias);
+		tensor_free_mapped(model->hl[i].mlp.c_fc_weight);
+		tensor_free_mapped(model->hl[i].mlp.c_fc_bias);
+		tensor_free_mapped(model->hl[i].mlp.c_proj_weight);
+		tensor_free_mapped(model->hl[i].mlp.c_proj_bias);
 	}
-	ft_free_mapped(model->ln_f_weight);
-	ft_free_mapped(model->ln_f_bias);
+	tensor_free_mapped(model->ln_f_weight);
+	tensor_free_mapped(model->ln_f_bias);
 
-	ft_free(model->state.output);
-	ft_free(model->state.tokens);
-	ft_free(model->state.positions);
-	ft_free(model->state.tokens_attn);
-	ft_free(model->state.qh);
-	ft_free(model->state.kh);
-	ft_free(model->state.vh);
-	ft_free(model->state.masked_attn);
-	ft_free(model->state.attn);
-	ft_free(model->state.attn_residual);
-	ft_free(model->state.mlp_fc);
-	ft_free(model->state.logits);
+	tensor_free(model->state.output);
+	tensor_free(model->state.tokens);
+	tensor_free(model->state.positions);
+	tensor_free(model->state.tokens_attn);
+	tensor_free(model->state.qh);
+	tensor_free(model->state.kh);
+	tensor_free(model->state.vh);
+	tensor_free(model->state.masked_attn);
+	tensor_free(model->state.attn);
+	tensor_free(model->state.attn_residual);
+	tensor_free(model->state.mlp_fc);
+	tensor_free(model->state.logits);
 
 	file_close(snapshot_param(model->ss));
 	file_close(snapshot_vocab(model->ss));

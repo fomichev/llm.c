@@ -8,15 +8,15 @@
 #include <execinfo.h>
 #include <time.h>
 
-static size_t pick_greedy(ft_t *logits)
+static size_t pick_greedy(tensor_t *logits)
 {
 	size_t token;
 
-	ft_max(logits, &token);
+	tensor_max(logits, &token);
 	return token;
 }
 
-static void top_k(ft_t *f, size_t *top_n, scalar_t *top_v, size_t k)
+static void top_k(tensor_t *f, size_t *top_n, scalar_t *top_v, size_t k)
 {
 	assert(k <= f->totlen);
 
@@ -52,7 +52,7 @@ static void top_k(ft_t *f, size_t *top_n, scalar_t *top_v, size_t k)
 
 static void top_k_test(void)
 {
-	ft_t *x = ft_new_1d(10,
+	tensor_t *x = tensor_new_1d(10,
 			    0.0,  /* 0 */
 			    1.0,  /* 1 */
 			    7.0,  /* 2 */
@@ -80,7 +80,7 @@ static void top_k_test(void)
 	assert(top_v[4] == 9.0);
 }
 
-static size_t pick_top_k(ft_t *logits, size_t k)
+static size_t pick_top_k(tensor_t *logits, size_t k)
 {
 	size_t top_n[k];
 	scalar_t top_v[k];
@@ -118,7 +118,7 @@ static size_t pick_top_k(ft_t *logits, size_t k)
 	return top_n[idx];
 }
 
-static size_t on_token(void *ctx, ft_t *logits)
+static size_t on_token(void *ctx, tensor_t *logits)
 {
 	struct snapshot *ss = ctx;
 	struct file *vocab;

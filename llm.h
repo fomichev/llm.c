@@ -19,7 +19,7 @@ size_t file_len(const struct file *f);
 void *file_at(const struct file *f, size_t pos);
 size_t file_at_len(const struct file *f, size_t pos);
 bool file_is_eof(struct file *f);
-ft_t *file_ft(struct file *f, size_t ndim, ...);
+tensor_t *file_tensor(struct file *f, size_t ndim, ...);
 
 struct snapshot;
 
@@ -34,7 +34,7 @@ int vocab_decode(struct file *f, const char *s, int *sz);
 
 struct gpt2;
 
-typedef size_t (*pick_token_t)(void *ctx, ft_t *logits);
+typedef size_t (*pick_token_t)(void *ctx, tensor_t *logits);
 
 struct gpt2 *gpt2_load(struct snapshot *ss);
 void gpt2_test_no_cache(struct gpt2 *model);

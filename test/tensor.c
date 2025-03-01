@@ -1,9 +1,9 @@
 #include "llm.h"
 #include "test/test.h"
 
-static void ft_eq_str(ft_t *t, const char *expected)
+static void tensor_eq_str(tensor_t *t, const char *expected)
 {
-	char *s = ft_to_string(t);
+	char *s = tensor_to_string(t);
 	if (strcmp(s, expected)) {
 		printf("'%s' != '%s'\n", s, expected);
 		assert(false);
@@ -12,54 +12,54 @@ static void ft_eq_str(ft_t *t, const char *expected)
 
 static void test_ft_to_string(void)
 {
-	ft_t *t;
+	tensor_t *t;
 
-	t = ft_new_1d(1,
+	t = tensor_new_1d(1,
 		      1.0);
-	ft_eq_str(t, "[+1.00e+00]");
+	tensor_eq_str(t, "[+1.00e+00]");
 
-	t = ft_new_1d(2,
+	t = tensor_new_1d(2,
 		      1.0, 2.0);
-	ft_eq_str(t, "[+1.00e+00 +2.00e+00]");
+	tensor_eq_str(t, "[+1.00e+00 +2.00e+00]");
 
-	t = ft_new_2d(2, 1,
+	t = tensor_new_2d(2, 1,
 		      1.0, 2.0);
-	ft_eq_str(t, "[[+1.00e+00][+2.00e+00]]");
+	tensor_eq_str(t, "[[+1.00e+00][+2.00e+00]]");
 
-	t = ft_new_2d(1, 2,
+	t = tensor_new_2d(1, 2,
 		      1.0, 2.0);
-	ft_eq_str(t, "[[+1.00e+00 +2.00e+00]]");
+	tensor_eq_str(t, "[[+1.00e+00 +2.00e+00]]");
 
-	t = ft_new_3d(2, 1, 1,
+	t = tensor_new_3d(2, 1, 1,
 		      1.0, 2.0);
-	ft_eq_str(t, "[[[+1.00e+00]][[+2.00e+00]]]");
+	tensor_eq_str(t, "[[[+1.00e+00]][[+2.00e+00]]]");
 
-	t = ft_new_3d(1, 1, 2,
+	t = tensor_new_3d(1, 1, 2,
 		      1.0, 2.0);
-	ft_eq_str(t, "[[[+1.00e+00 +2.00e+00]]]");
+	tensor_eq_str(t, "[[[+1.00e+00 +2.00e+00]]]");
 
-	t = ft_new_3d(2, 1, 2,
+	t = tensor_new_3d(2, 1, 2,
 		      1.0, 2.0, 3.0, 4.0);
-	ft_eq_str(t, "[[[+1.00e+00 +2.00e+00]][[+3.00e+00 +4.00e+00]]]");
+	tensor_eq_str(t, "[[[+1.00e+00 +2.00e+00]][[+3.00e+00 +4.00e+00]]]");
 
-	t = ft_new_3d(1, 2, 2,
+	t = tensor_new_3d(1, 2, 2,
 		      1.0, 2.0, 3.0, 4.0);
-	ft_eq_str(t, "[[[+1.00e+00 +2.00e+00][+3.00e+00 +4.00e+00]]]");
+	tensor_eq_str(t, "[[[+1.00e+00 +2.00e+00][+3.00e+00 +4.00e+00]]]");
 }
 
 static void test_ft_add(void)
 {
-	ft_t *ret, *lhs, *rhs;
+	tensor_t *ret, *lhs, *rhs;
 
-	lhs = ft_new_2d(3, 2,
+	lhs = tensor_new_2d(3, 2,
 			1.0, 1.0, 2.0, 2.0, 3.0, 3.0);
-	rhs = ft_new_2d(3, 2,
+	rhs = tensor_new_2d(3, 2,
 			2.0, 2.0, 3.0, 3.0, 4.0, 4.0);
-	ret = ft_new_zero(2, 3, 2);
+	ret = tensor_new_zero(2, 3, 2);
 
-	ft_add(ret, lhs, rhs);
+	tensor_add(ret, lhs, rhs);
 
-	ft_eq_str(ret, "["
+	tensor_eq_str(ret, "["
 		  "[+3.00e+00 +3.00e+00]"
 		  "[+5.00e+00 +5.00e+00]"
 		  "[+7.00e+00 +7.00e+00]"
@@ -68,17 +68,17 @@ static void test_ft_add(void)
 
 static void test_ft_sub(void)
 {
-	ft_t *ret, *lhs, *rhs;
+	tensor_t *ret, *lhs, *rhs;
 
-	lhs = ft_new_2d(3, 2,
+	lhs = tensor_new_2d(3, 2,
 			1.0, 1.0, 2.0, 2.0, 3.0, 3.0);
-	rhs = ft_new_2d(3, 2,
+	rhs = tensor_new_2d(3, 2,
 			3.0, 3.0, 2.0, 2.0, 1.0, 1.0);
-	ret = ft_new_zero(2, 3, 2);
+	ret = tensor_new_zero(2, 3, 2);
 
-	ft_sub(ret, lhs, rhs);
+	tensor_sub(ret, lhs, rhs);
 
-	ft_eq_str(ret, "["
+	tensor_eq_str(ret, "["
 		  "[-2.00e+00 -2.00e+00]"
 		  "[+0.00e+00 +0.00e+00]"
 		  "[+2.00e+00 +2.00e+00]"
@@ -87,17 +87,17 @@ static void test_ft_sub(void)
 
 static void test_ft_mul(void)
 {
-	ft_t *ret, *lhs, *rhs;
+	tensor_t *ret, *lhs, *rhs;
 
-	lhs = ft_new_2d(3, 2,
+	lhs = tensor_new_2d(3, 2,
 			1.0, 1.0, 2.0, 2.0, 3.0, 3.0);
-	rhs = ft_new_2d(3, 2,
+	rhs = tensor_new_2d(3, 2,
 			2.0, 2.0, 3.0, 3.0, 4.0, 4.0);
-	ret = ft_new_zero(2, 3, 2);
+	ret = tensor_new_zero(2, 3, 2);
 
-	ft_mul(ret, lhs, rhs);
+	tensor_mul(ret, lhs, rhs);
 
-	ft_eq_str(ret, "["
+	tensor_eq_str(ret, "["
 		  "[+2.00e+00 +2.00e+00]"
 		  "[+6.00e+00 +6.00e+00]"
 		  "[+1.20e+01 +1.20e+01]"
@@ -106,17 +106,17 @@ static void test_ft_mul(void)
 
 static void test_ft_div(void)
 {
-	ft_t *ret, *lhs, *rhs;
+	tensor_t *ret, *lhs, *rhs;
 
-	lhs = ft_new_2d(3, 2,
+	lhs = tensor_new_2d(3, 2,
 			2.0, 2.0, 4.0, 4.0, 9.0, 9.0);
-	rhs = ft_new_2d( 3, 2,
+	rhs = tensor_new_2d( 3, 2,
 			 2.0, 2.0, 2.0, 2.0, 3.0, 3.0);
-	ret = ft_new_zero(2, 3, 2);
+	ret = tensor_new_zero(2, 3, 2);
 
-	ft_div(ret, lhs, rhs);
+	tensor_div(ret, lhs, rhs);
 
-	ft_eq_str(ret, "["
+	tensor_eq_str(ret, "["
 		  "[+1.00e+00 +1.00e+00]"
 		  "[+2.00e+00 +2.00e+00]"
 		  "[+3.00e+00 +3.00e+00]"
@@ -125,44 +125,44 @@ static void test_ft_div(void)
 
 static void test_ft_mma(void)
 {
-	ft_t *ret, *lhs, *rhs, *add;
+	tensor_t *ret, *lhs, *rhs, *add;
 
-	lhs = ft_new_2d(2, 3,
+	lhs = tensor_new_2d(2, 3,
 			0.0, 1.0, 2.0, 3.0, 4.0, 5.0);
-	rhs = ft_new_2d(3, 2,
+	rhs = tensor_new_2d(3, 2,
 			6.0, 7.0, 8.0, 9.0, 10.0, 11.0);
-	add = ft_new_2d(2, 2,
+	add = tensor_new_2d(2, 2,
 			1.0, 1.0, 1.0, 1.0);
-	ret = ft_new_zero(2, 2, 2);
-	ft_mma_2x2(ret, lhs, rhs, add);
-	ft_eq_str(ret, "["
+	ret = tensor_new_zero(2, 2, 2);
+	tensor_mma_2x2(ret, lhs, rhs, add);
+	tensor_eq_str(ret, "["
 		  "[+2.90e+01 +3.20e+01]"
 		  "[+1.01e+02 +1.13e+02]"
 		  "]");
 
-	lhs = ft_new_2d(2, 3,
+	lhs = tensor_new_2d(2, 3,
 			1.0, 2.0, 3.0,
 			4.0, 5.0, 6.0);
-	rhs = ft_new_2d(3, 4,
+	rhs = tensor_new_2d(3, 4,
 			1.0, 2.0, 3.0, 5.0,
 			6.0, 7.0, 8.0, 9.0,
 			10.0, 11.0, 12.0, 13.0);
-	ret = ft_new_zero(2, 2, 4);
-	ft_mma_2x2(ret, lhs, rhs, NULL);
-	ft_eq_str(ret, "[[+4.30e+01 +4.90e+01 +5.50e+01 +6.20e+01][+9.40e+01 +1.09e+02 +1.24e+02 +1.43e+02]]");
+	ret = tensor_new_zero(2, 2, 4);
+	tensor_mma_2x2(ret, lhs, rhs, NULL);
+	tensor_eq_str(ret, "[[+4.30e+01 +4.90e+01 +5.50e+01 +6.20e+01][+9.40e+01 +1.09e+02 +1.24e+02 +1.43e+02]]");
 
-	rhs = ft_new_2d(4, 3,
+	rhs = tensor_new_2d(4, 3,
 			1.0, 6.0, 10.0,
 			2.0, 7.0, 11.0,
 			3.0, 8.0, 12.0,
 			5.0, 9.0, 13.0);
-	ft_mma_transposed_2x2(ret, lhs, rhs, NULL);
-	ft_eq_str(ret, "[[+4.30e+01 +4.90e+01 +5.50e+01 +6.20e+01][+9.40e+01 +1.09e+02 +1.24e+02 +1.43e+02]]");
+	tensor_mma_transposed_2x2(ret, lhs, rhs, NULL);
+	tensor_eq_str(ret, "[[+4.30e+01 +4.90e+01 +5.50e+01 +6.20e+01][+9.40e+01 +1.09e+02 +1.24e+02 +1.43e+02]]");
 
-	lhs = ft_new_2d(2, 17,
+	lhs = tensor_new_2d(2, 17,
 			1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0,
 			11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 110.0, 111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0);
-	rhs = ft_new_2d(3, 17,
+	rhs = tensor_new_2d(3, 17,
 			1.0, 2.0, 3.0,
 			21.0, 22.0, 23.0,
 			31.0, 32.0, 33.0,
@@ -180,46 +180,46 @@ static void test_ft_mma(void)
 			151.0, 152.0, 153.0,
 			161.0, 162.0, 163.0,
 			171.0, 172.0, 173.0);
-	ret = ft_new_zero(2, 2, 3);
-	ft_mma_transposed_2x2(ret, lhs, rhs, NULL);
-	ft_eq_str(ret, "[[+6.72e+03 +1.53e+04 +2.41e+04][+4.89e+04 +1.08e+05 +1.67e+05]]");
+	ret = tensor_new_zero(2, 2, 3);
+	tensor_mma_transposed_2x2(ret, lhs, rhs, NULL);
+	tensor_eq_str(ret, "[[+6.72e+03 +1.53e+04 +2.41e+04][+4.89e+04 +1.08e+05 +1.67e+05]]");
 }
 
 static void test_ft_max(void)
 {
 	size_t pos = 0;
 	size_t n;
-	ft_t *t;
+	tensor_t *t;
 
 	n = VECTOR_CHUNK * 2;
-	t = ft_new_zero(1, n);
+	t = tensor_new_zero(1, n);
 	t->data[n - 1] = 1;
 
-	assert(ft_max(t, &pos) == t->data[n - 1]);
+	assert(tensor_max(t, &pos) == t->data[n - 1]);
 	assert(pos == n - 1);
 
 	n = VECTOR_CHUNK * 2 - 1;
-	t = ft_new_zero(1, n);
+	t = tensor_new_zero(1, n);
 	t->data[n - 1] = 1;
 
-	assert(ft_max(t, &pos) == t->data[n - 1]);
+	assert(tensor_max(t, &pos) == t->data[n - 1]);
 	assert(pos == n - 1);
 }
 
 static void bench_ft_mma_transposed(int rounds)
 {
-	ft_t *ret, *lhs, *rhs, *add;
+	tensor_t *ret, *lhs, *rhs, *add;
 
-	lhs = ft_new_zero(2, 4*8, 4*8);
-	rhs = ft_new_zero(2, 4*8, 4*8);
-	add = ft_new_zero(2, 4*8, 4*8);
-	ret = ft_new_zero(2, 4*8, 4*8);
+	lhs = tensor_new_zero(2, 4*8, 4*8);
+	rhs = tensor_new_zero(2, 4*8, 4*8);
+	add = tensor_new_zero(2, 4*8, 4*8);
+	ret = tensor_new_zero(2, 4*8, 4*8);
 
 	bench_begin("mma_transposed");
 
 	uint64_t start = now();
 	for (int i = 0; i < rounds; i++)
-		ft_mma_transposed_2x2(ret, lhs, rhs, add);
+		tensor_mma_transposed_2x2(ret, lhs, rhs, add);
 	uint64_t duration_base = now() - start;
 	bench_entry("base", rounds, duration_base, 0);
 

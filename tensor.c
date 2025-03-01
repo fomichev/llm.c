@@ -9,10 +9,10 @@
 
 #include "tensor.h"
 
-static ft_t *__ft_new(void *data, size_t ndim)
+static tensor_t *__tensor_new(void *data, size_t ndim)
 {
 	uint32_t ndim_sz = ndim;
-	ft_t *t;
+	tensor_t *t;
 
 	t = calloc(1, sizeof(*t) + sizeof(size_t));
 	if (!t)
@@ -24,7 +24,7 @@ static ft_t *__ft_new(void *data, size_t ndim)
 	return t;
 }
 
-static void *__ft_alloc_data(size_t len)
+static void *__tensor_alloc_data(size_t len)
 {
 	size_t sz;
 	void *p;
@@ -37,13 +37,13 @@ static void *__ft_alloc_data(size_t len)
 	return p;
 }
 
-ft_t *ft_new_zero(size_t ndim, ...)
+tensor_t *tensor_new_zero(size_t ndim, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	size_t len = 1;
 	va_list ap;
 
-	t = __ft_new(NULL, ndim);
+	t = __tensor_new(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
@@ -51,7 +51,7 @@ ft_t *ft_new_zero(size_t ndim, ...)
 	}
 	va_end(ap);
 
-	t->data = __ft_alloc_data(len);
+	t->data = __tensor_alloc_data(len);
 	assert(t->data);
 	t->totlen = len;
 	t->maxcap = len;
@@ -59,20 +59,20 @@ ft_t *ft_new_zero(size_t ndim, ...)
 	return t;
 }
 
-ft_t *ft_new(size_t ndim, ...)
+tensor_t *tensor_new(size_t ndim, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	size_t len = 1;
 	va_list ap;
 
-	t = __ft_new(NULL, ndim);
+	t = __tensor_new(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
 		len *= t->dim[i];
 	}
 
-	t->data = __ft_alloc_data(len);
+	t->data = __tensor_alloc_data(len);
 	assert(t->data);
 	t->totlen = len;
 	t->maxcap = len;
@@ -85,9 +85,9 @@ ft_t *ft_new(size_t ndim, ...)
 	return t;
 }
 
-static ft_t *__ft_new_xd(ft_t *t, va_list ap)
+static tensor_t *__tensor_new_xd(tensor_t *t, va_list ap)
 {
-	t->data = __ft_alloc_data(t->totlen);
+	t->data = __tensor_alloc_data(t->totlen);
 	assert(t->data);
 
 	for (size_t i = 0; i < t->totlen; i++) {
@@ -97,88 +97,88 @@ static ft_t *__ft_new_xd(ft_t *t, va_list ap)
 	return t;
 }
 
-ft_t *ft_new_1d(size_t d1, ...)
+tensor_t *tensor_new_1d(size_t d1, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	va_list ap;
 
-	t = __ft_new(NULL, 1);
+	t = __tensor_new(NULL, 1);
 	t->dim[0] = d1;
 	t->totlen = d1;
 
 	va_start(ap, d1);
-	__ft_new_xd(t, ap);
+	__tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
 }
 
-ft_t *ft_new_2d(size_t d1, size_t d2, ...)
+tensor_t *tensor_new_2d(size_t d1, size_t d2, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	va_list ap;
 
-	t = __ft_new(NULL, 2);
+	t = __tensor_new(NULL, 2);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->totlen = d1 * d2;
 
 	va_start(ap, d2);
-	__ft_new_xd(t, ap);
+	__tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
 }
 
-ft_t *ft_new_3d(size_t d1, size_t d2, size_t d3, ...)
+tensor_t *tensor_new_3d(size_t d1, size_t d2, size_t d3, ...)
 {
-	ft_t *t;
+	tensor_t *t;
 	va_list ap;
 
-	t = __ft_new(NULL, 3);
+	t = __tensor_new(NULL, 3);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->dim[2] = d3;
 	t->totlen = d1 * d2 * d3;
 
 	va_start(ap, d3);
-	__ft_new_xd(t, ap);
+	__tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
 }
 
-void ft_free(ft_t *t)
+void tensor_free(tensor_t *t)
 {
 	free(t->data);
 	free(t);
 }
 
-ft_t *ft_new_mapped(void *data, size_t totlen)
+tensor_t *tensor_new_mapped(void *data, size_t totlen)
 {
-	ft_t *t;
+	tensor_t *t;
 
-	t = __ft_new(data, 0);
+	t = __tensor_new(data, 0);
 	t->totlen = totlen;
 	t->maxcap = totlen;
 
 	return t;
 }
 
-void ft_free_mapped(const ft_t *t)
+void tensor_free_mapped(const tensor_t *t)
 {
 	free((void *)t);
 }
 
-static void __ft_to_string(FILE *f, const ft_t *t, int show_only)
+static void __tensor_to_string(FILE *f, const tensor_t *t, int show_only)
 {
 	if (t->ndim == 1) {
 		fprintf(f, "[");
-		for (size_t i = 0; i < ft_len(t); i++) {
+		for (size_t i = 0; i < tensor_len(t); i++) {
 			if (show_only && i == show_only) {
 				size_t old_i = i;
 
-				i = ft_len(t) - show_only - 1;
+				i = tensor_len(t) - show_only - 1;
 				fprintf(f, " ..%zu..", i - old_i);
 				continue;
 			}
@@ -194,69 +194,69 @@ static void __ft_to_string(FILE *f, const ft_t *t, int show_only)
 	}
 
 	fprintf(f, "[");
-	for (size_t i = 0; i < ft_len(t); i++) {
-		ft_t view = {};
+	for (size_t i = 0; i < tensor_len(t); i++) {
+		tensor_t view = {};
 
 		if (show_only && i == show_only) {
 			size_t old_i = i;
 
-			i = ft_len(t) - show_only - 1;
+			i = tensor_len(t) - show_only - 1;
 			fprintf(f, "\n [..%zu..]\n ", i - old_i + 1);
 			continue;
 		}
 
-		ft_at(t, i, &view);
-		__ft_to_string(f, &view, show_only);
+		tensor_at(t, i, &view);
+		__tensor_to_string(f, &view, show_only);
 
-		if (show_only && i + 1 != ft_len(t) && i + 1 != show_only)
+		if (show_only && i + 1 != tensor_len(t) && i + 1 != show_only)
 			fprintf(f, "\n ");
 	}
 	fprintf(f, "]");
 }
 
-char *ft_to_string(const ft_t *t)
+char *tensor_to_string(const tensor_t *t)
 {
 	FILE *f;
 	char *ptr;
 	size_t size;
 
 	f = open_memstream(&ptr, &size);
-	__ft_to_string(f, t, 0);
+	__tensor_to_string(f, t, 0);
 	fclose(f);
 
 	return ptr;
 }
 
-char *ft_to_short_string(const ft_t *t)
+char *tensor_to_short_string(const tensor_t *t)
 {
 	FILE *f;
 	char *ptr;
 	size_t size;
 
 	f = open_memstream(&ptr, &size);
-	__ft_to_string(f, t, 2);
+	__tensor_to_string(f, t, 2);
 	fclose(f);
 
 	return ptr;
 }
 
-void ft_pick_rows(ft_t *dst, const ft_t *src, const int *rows, size_t num)
+void tensor_pick_rows(tensor_t *dst, const tensor_t *src, const int *rows, size_t num)
 {
-	ft_assert_2d(dst, 0, 0);
-	ft_assert_2d(src, 0, 0);
-	ft_assert_2d_match(dst, src);
+	tensor_assert_2d(dst, 0, 0);
+	tensor_assert_2d(src, 0, 0);
+	tensor_assert_2d_match(dst, src);
 
-	ft_resize(dst, num);
+	tensor_resize(dst, num);
 
 	size_t m = src->dim[1];
 
 	for (size_t i = 0; i < num; i++) {
-		ft_t row;
+		tensor_t row;
 
-		assert(rows[i] < ft_len(src));
+		assert(rows[i] < tensor_len(src));
 
-		ft_at(src, rows[i], &row);
-		ft_assert_1d(&row, m);
+		tensor_at(src, rows[i], &row);
+		tensor_assert_1d(&row, m);
 
 		memcpy(&dst->data[i * m], row.data, sizeof(scalar_t) * m);
 	}
@@ -265,17 +265,17 @@ void ft_pick_rows(ft_t *dst, const ft_t *src, const int *rows, size_t num)
 	dst->totlen = dst->dim[0] * dst->dim[1];
 }
 
-static void __ft_same_size(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs)
+static void __tensor_same_size(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs)
 {
 	assert(lhs->totlen == ret->totlen);
 	if (rhs)
 		assert(lhs->totlen == rhs->totlen);
 }
 
-void ft_set(ft_t *ret, scalar_t val)
+void tensor_set(tensor_t *ret, scalar_t val)
 {
 	vector_t v;
 
@@ -295,12 +295,12 @@ void ft_set(ft_t *ret, scalar_t val)
 	}
 }
 
-void __ft_set_inner(ft_t *dst, size_t dst_idx, const ft_t *src)
+void __tensor_set_inner(tensor_t *dst, size_t dst_idx, const tensor_t *src)
 {
 	memcpy(&dst->data[dst_idx * dst->dim[1]], src->data, src->totlen * sizeof(scalar_t));
 }
 
-void ft_copy(ft_t *dst, const ft_t *src)
+void tensor_copy(tensor_t *dst, const tensor_t *src)
 {
 	assert(dst->totlen == src->totlen);
 	assert(dst->ndim == src->ndim);
@@ -308,14 +308,14 @@ void ft_copy(ft_t *dst, const ft_t *src)
 	memcpy(dst->data, src->data, src->totlen * sizeof(scalar_t));
 }
 
-void ft_add(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs)
+void tensor_add(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs)
 {
 	vector_t r, l;
 
-	__ft_same_size(ret, lhs, rhs);
+	__tensor_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
 		vector_load(&l, &lhs->data[i]);
@@ -329,31 +329,31 @@ void ft_add(
 	}
 }
 
-void ft_add_2x1(
-	ft_t *dst,
-	const ft_t *src,
-	const ft_t *vec)
+void tensor_add_2x1(
+	tensor_t *dst,
+	const tensor_t *src,
+	const tensor_t *vec)
 {
 	assert(src->ndim == 2);
 	assert(vec->ndim == 1);
 	assert(src->totlen == vec->totlen * src->dim[0]);
 
-	for (size_t i = 0; i < ft_len(src); i++) {
-		ft_t row;
+	for (size_t i = 0; i < tensor_len(src); i++) {
+		tensor_t row;
 
-		ft_at(src, i, &row);
-		ft_add(&row, &row, vec);
+		tensor_at(src, i, &row);
+		tensor_add(&row, &row, vec);
 	}
 }
 
-void ft_sub(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs)
+void tensor_sub(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs)
 {
 	vector_t r, l;
 
-	__ft_same_size(ret, lhs, rhs);
+	__tensor_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
 		vector_load(&l, &lhs->data[i]);
@@ -367,14 +367,14 @@ void ft_sub(
 	}
 }
 
-void ft_mul(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs)
+void tensor_mul(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs)
 {
 	vector_t r, l;
 
-	__ft_same_size(ret, lhs, rhs);
+	__tensor_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
 		vector_load(&l, &lhs->data[i]);
@@ -388,14 +388,14 @@ void ft_mul(
 	}
 }
 
-void ft_div(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs)
+void tensor_div(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs)
 {
 	vector_t r, l;
 
-	__ft_same_size(ret, lhs, rhs);
+	__tensor_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
 		vector_load(&l, &lhs->data[i]);
@@ -409,15 +409,15 @@ void ft_div(
 	}
 }
 
-void ft_div_scalar(
-	ft_t *ret,
-	const ft_t *lhs,
+void tensor_div_scalar(
+	tensor_t *ret,
+	const tensor_t *lhs,
 	scalar_t scalar)
 {
 	vector_t vscalar;
 	vector_t vtmp;
 
-	__ft_same_size(ret, lhs, NULL);
+	__tensor_same_size(ret, lhs, NULL);
 
 	vector_set(&vscalar, scalar);
 
@@ -432,7 +432,7 @@ void ft_div_scalar(
 	}
 }
 
-scalar_t ft_mean(const ft_t *lhs)
+scalar_t tensor_mean(const tensor_t *lhs)
 {
 	size_t nr = 0;
 	vector_t t, s;
@@ -454,7 +454,7 @@ scalar_t ft_mean(const ft_t *lhs)
 	return sum / nr;
 }
 
-scalar_t ft_max(const ft_t *lhs, size_t *pos)
+scalar_t tensor_max(const tensor_t *lhs, size_t *pos)
 {
 	size_t max = lhs->data[0];
 	size_t max_pos = 0;
@@ -493,11 +493,11 @@ scalar_t ft_max(const ft_t *lhs, size_t *pos)
 	return max;
 }
 
-void ft_mma_2x2(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs,
-	const ft_t *add)
+void tensor_mma_2x2(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs,
+	const tensor_t *add)
 {
 	assert(ret != lhs && ret != rhs);
 	assert(rhs->ndim == 2 && lhs->ndim == 2);
@@ -542,11 +542,11 @@ void ft_mma_2x2(
 		    /*ldc=*/n);
 }
 
-void ft_mma_transposed_2x2(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs,
-	const ft_t *add)
+void tensor_mma_transposed_2x2(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs,
+	const tensor_t *add)
 {
 	assert(ret != lhs && ret != rhs);
 	assert(rhs->ndim == 2 && lhs->ndim == 2);

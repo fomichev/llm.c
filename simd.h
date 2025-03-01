@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-/* TODO: ft_t -> tensor_t */
 typedef float scalar_t;
 
 #include "simd_cpu.h"

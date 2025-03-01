@@ -9,23 +9,23 @@ typedef struct {
 	uint64_t maxcap;
 	uint64_t dim[4];
 	uint32_t ndim;
-} ft_t;
+} tensor_t;
 
-ft_t *ft_new_zero(size_t ndim, ...);
-ft_t *ft_new(size_t ndim, ...);
-ft_t *ft_new_1d(size_t d1, ...);
-ft_t *ft_new_2d(size_t d1, size_t d2, ...);
-ft_t *ft_new_3d(size_t d1, size_t d2, size_t d3, ...);
-void ft_free(ft_t *t);
+tensor_t *tensor_new_zero(size_t ndim, ...);
+tensor_t *tensor_new(size_t ndim, ...);
+tensor_t *tensor_new_1d(size_t d1, ...);
+tensor_t *tensor_new_2d(size_t d1, size_t d2, ...);
+tensor_t *tensor_new_3d(size_t d1, size_t d2, size_t d3, ...);
+void tensor_free(tensor_t *t);
 
-ft_t *ft_new_mapped(void *data, size_t totlen);
-void ft_free_mapped(const ft_t *t);
+tensor_t *tensor_new_mapped(void *data, size_t totlen);
+void tensor_free_mapped(const tensor_t *t);
 
-char *ft_to_string(const ft_t *t);
-char *ft_to_short_string(const ft_t *t);
-void ft_pick_rows(ft_t *dst, const ft_t *src, const int *rows, size_t num);
+char *tensor_to_string(const tensor_t *t);
+char *tensor_to_short_string(const tensor_t *t);
+void tensor_pick_rows(tensor_t *dst, const tensor_t *src, const int *rows, size_t num);
 
-static inline size_t ft_len(const ft_t *t)
+static inline size_t tensor_len(const tensor_t *t)
 {
 	if (t->ndim == 0)
 		return 0;
@@ -33,7 +33,7 @@ static inline size_t ft_len(const ft_t *t)
 }
 
 /* convert tensor to 1 dimension with specific size */
-static inline void ft_reshape_1d(ft_t *t, size_t d1)
+static inline void tensor_reshape_1d(tensor_t *t, size_t d1)
 {
 	assert(d1 <= t->maxcap);
 
@@ -43,7 +43,7 @@ static inline void ft_reshape_1d(ft_t *t, size_t d1)
 }
 
 /* convert tensor to 2 dimensions with specific sizes */
-static inline void ft_reshape_2d(ft_t *t, size_t d1, size_t d2)
+static inline void tensor_reshape_2d(tensor_t *t, size_t d1, size_t d2)
 {
 	assert(d1 * d2 <= t->maxcap);
 
@@ -54,7 +54,7 @@ static inline void ft_reshape_2d(ft_t *t, size_t d1, size_t d2)
 }
 
 /* convert tensor to 3 dimensions with specific sizes */
-static inline void ft_reshape_3d(ft_t *t, size_t d1, size_t d2, size_t d3)
+static inline void tensor_reshape_3d(tensor_t *t, size_t d1, size_t d2, size_t d3)
 {
 	assert(d1 * d2 * d3 <= t->maxcap);
 
@@ -66,7 +66,7 @@ static inline void ft_reshape_3d(ft_t *t, size_t d1, size_t d2, size_t d3)
 }
 
 /* convert tensor to 4 dimensions with specific sizes */
-static inline void ft_reshape_4d(ft_t *t, size_t d1, size_t d2, size_t d3, size_t d4)
+static inline void tensor_reshape_4d(tensor_t *t, size_t d1, size_t d2, size_t d3, size_t d4)
 {
 	assert(d1 * d2 * d3 * d4 <= t->maxcap);
 
@@ -79,7 +79,7 @@ static inline void ft_reshape_4d(ft_t *t, size_t d1, size_t d2, size_t d3, size_
 }
 
 /* resize other dimension */
-static inline void ft_resize(ft_t *t, size_t d)
+static inline void tensor_resize(tensor_t *t, size_t d)
 {
 	if (t->ndim == 1) {
 		assert(d <= t->maxcap);
@@ -94,7 +94,7 @@ static inline void ft_resize(ft_t *t, size_t d)
 	}
 }
 
-static inline void ft_resize_2d(ft_t *t, size_t d1, size_t d2)
+static inline void tensor_resize_2d(tensor_t *t, size_t d1, size_t d2)
 {
 	assert(t->ndim == 2);
 	assert(d1 * d2 <= t->maxcap);
@@ -105,7 +105,7 @@ static inline void ft_resize_2d(ft_t *t, size_t d1, size_t d2)
 }
 
 /* returns a ft view over original ft */
-#define ft_at(t, idx, view) \
+#define tensor_at(t, idx, view) \
 do { \
 	assert((t)->ndim > 1); \
 	assert((idx) < (t)->dim[0]); \
@@ -119,14 +119,14 @@ do { \
 	(view)->dim[3] = (t)->dim[3]; \
 } while (0)
 
-static inline void ft_assert_1d(const ft_t *t, size_t d1)
+static inline void tensor_assert_1d(const tensor_t *t, size_t d1)
 {
 	assert(t->ndim == 1);
 	if (d1 > 0)
 		assert(t->dim[0] == d1);
 }
 
-static inline void ft_assert_2d(const ft_t *t, size_t d1, size_t d2)
+static inline void tensor_assert_2d(const tensor_t *t, size_t d1, size_t d2)
 {
 	assert(t->ndim == 2);
 	if (d1 > 0)
@@ -135,63 +135,63 @@ static inline void ft_assert_2d(const ft_t *t, size_t d1, size_t d2)
 		assert(t->dim[1] == d2);
 }
 
-static inline void ft_assert_1d_match(const ft_t *lhs, const ft_t *rhs)
+static inline void tensor_assert_1d_match(const tensor_t *lhs, const tensor_t *rhs)
 {
 	assert(lhs->dim[0] == rhs->dim[0]);
 }
 
-static inline void ft_assert_2d_match(const ft_t *lhs, const ft_t *rhs)
+static inline void tensor_assert_2d_match(const tensor_t *lhs, const tensor_t *rhs)
 {
 	assert(lhs->dim[1] == rhs->dim[1]);
 }
 
-void ft_set(ft_t *ret, scalar_t val);
-#define ft_set_inner(dst, dst_idx, src) \
+void tensor_set(tensor_t *ret, scalar_t val);
+#define tensor_set_inner(dst, dst_idx, src) \
 do { \
 	assert((dst)->ndim == 2); \
 	assert((dst)->dim[1] == (src)->totlen); \
 	assert((dst_idx) < (dst)->dim[0]); \
-	__ft_set_inner((dst), (dst_idx), (src)); \
+	__tensor_set_inner((dst), (dst_idx), (src)); \
 } while (0)
 
-void __ft_set_inner(ft_t *dst, size_t dst_idx, const ft_t *src);
-void ft_copy(ft_t *dst, const ft_t *src);
-void ft_add(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs);
-void ft_add_2x1(
-	ft_t *dst,
-	const ft_t *src,
-	const ft_t *vec);
-void ft_sub(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs);
-void ft_mul(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs);
-void ft_div(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs);
-void ft_div_scalar(
-	ft_t *ret,
-	const ft_t *lhs,
+void __tensor_set_inner(tensor_t *dst, size_t dst_idx, const tensor_t *src);
+void tensor_copy(tensor_t *dst, const tensor_t *src);
+void tensor_add(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs);
+void tensor_add_2x1(
+	tensor_t *dst,
+	const tensor_t *src,
+	const tensor_t *vec);
+void tensor_sub(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs);
+void tensor_mul(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs);
+void tensor_div(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs);
+void tensor_div_scalar(
+	tensor_t *ret,
+	const tensor_t *lhs,
 	scalar_t scalar);
-scalar_t ft_mean(const ft_t *lhs);
-scalar_t ft_max(const ft_t *lhs, size_t *pos);
+scalar_t tensor_mean(const tensor_t *lhs);
+scalar_t tensor_max(const tensor_t *lhs, size_t *pos);
 
 /* ret = lhs @ rhs + add */
-void ft_mma_2x2(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs,
-	const ft_t *add);
+void tensor_mma_2x2(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs,
+	const tensor_t *add);
 /* ret = lhs @ rhs.T + add */
-void ft_mma_transposed_2x2(
-	ft_t *ret,
-	const ft_t *lhs,
-	const ft_t *rhs,
-	const ft_t *add);
+void tensor_mma_transposed_2x2(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs,
+	const tensor_t *add);
