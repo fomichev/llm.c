@@ -81,3 +81,15 @@ typedef __m256 avx2_fv_t;
 		__m128 v1 = _mm_add_ss(v2, _mm_movehdup_ps(v2)); \
 		_mm_cvtss_f32(v1); \
 	})
+
+#define AVX2_FV_REDUCE_MAX(LHS) \
+	({ \
+		FT_TYPE tmp[AVX2_N]; \
+		AVX2_FV_STORE(tmp, LHS); \
+		for (size_t i = 1; i < AVX2_N; i++) { \
+            if (tmp[i] > tmp[0]) { \
+			    tmp[0] = tmp[i]; \
+            } \
+		} \
+		tmp[0]; \
+	})

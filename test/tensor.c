@@ -185,6 +185,27 @@ static void test_ft_mma(void)
 	ft_eq_str(ret, "[[+6.72e+03 +1.53e+04 +2.41e+04][+4.89e+04 +1.08e+05 +1.67e+05]]");
 }
 
+static void test_ft_max(void)
+{
+	size_t pos = 0;
+	size_t n;
+	ft_t *t;
+
+	n = FT_N * 2;
+	t = ft_new_zero(1, n);
+	t->data[n - 1] = 1;
+
+	assert(ft_max(t, &pos) == t->data[n - 1]);
+	assert(pos == n - 1);
+
+	n = FT_N * 2 - 1;
+	t = ft_new_zero(1, n);
+	t->data[n - 1] = 1;
+
+	assert(ft_max(t, &pos) == t->data[n - 1]);
+	assert(pos == n - 1);
+}
+
 static void bench_ft_mma_transposed(int rounds)
 {
 	ft_t *ret, *lhs, *rhs, *add;
@@ -238,6 +259,7 @@ int main(int argc, char *argv[])
 	test_ft_mul();
 	test_ft_div();
 	test_ft_mma();
+	test_ft_max();
 	printf("ft: ok\n");
 	bench_ft_mma_transposed(1000);
 }

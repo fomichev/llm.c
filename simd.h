@@ -24,6 +24,7 @@ typedef avx512_fv_t fv_t;
 #define FV_EXP			AVX512_FV_EXP
 #define FV_TANH			AVX512_FV_TANH
 #define FV_REDUCE_SUM	AVX512_FV_REDUCE_SUM
+#define FV_REDUCE_MAX	AVX512_FV_REDUCE_MAX
 #elif defined(__AVX2__)
 typedef avx2_fv_t fv_t;
 #define FT_N            AVX2_N
@@ -37,6 +38,7 @@ typedef avx2_fv_t fv_t;
 #define FV_EXP			AVX2_FV_EXP
 #define FV_TANH			AVX2_FV_TANH
 #define FV_REDUCE_SUM	AVX2_FV_REDUCE_SUM
+#define FV_REDUCE_MAX	AVX2_FV_REDUCE_MAX
 #else
 typedef cpu_fv_t fv_t;
 #define FT_N            CPU_N
@@ -49,5 +51,6 @@ typedef cpu_fv_t fv_t;
 #define FV_DIV			CPU_FV_DIV
 #define FV_EXP			CPU_FV_EXP
 #define FV_TANH			CPU_FV_TANH
-#define FV_REDUCE_SUM		CPU_FV_REDUCE_SUM
+#define FV_REDUCE_SUM	CPU_FV_REDUCE_SUM
+#define FV_REDUCE_MAX	CPU_FV_REDUCE_MAX
 #endif

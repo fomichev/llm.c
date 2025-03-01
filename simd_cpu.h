@@ -73,3 +73,14 @@ typedef struct {
 		} \
 		sum; \
 	})
+
+#define CPU_FV_REDUCE_MAX(LHS) \
+	({ \
+		FT_TYPE ret = (LHS).v[0]; \
+		for (size_t i = 0; i < CPU_N; i++) { \
+            if ((LHS).v[i] > ret) { \
+			    ret = (LHS).v[i]; \
+            } \
+		} \
+		ret; \
+	})

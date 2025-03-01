@@ -1,4 +1,5 @@
 #include "llm.h"
+#include "simd.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -455,19 +456,39 @@ FT_TYPE ft_mean(const ft_t *lhs)
 
 FT_TYPE ft_max(const ft_t *lhs, size_t *pos)
 {
-	FT_TYPE max = lhs->data[0];
+	size_t max = lhs->data[0];
 	size_t max_pos = 0;
-	fv_t t, s;
+	size_t res;
+	fv_t t;
 
-	for (size_t i = 0; i < lhs->totlen; i++) {
+	for (size_t i = 0; i < FT_LEN(lhs->totlen); i += FT_N) {
+		FV_LOAD(t, &lhs->data[i]);
+		res = FV_REDUCE_MAX(t);
+		if (res > max) {
+			max = res;
+			max_pos = i;
+		}
+	}
+
+	for (size_t i = FT_LEN(lhs->totlen); i < lhs->totlen; i++) {
 		if (lhs->data[i] > max) {
 			max = lhs->data[i];
 			max_pos = i;
 		}
 	}
 
-	if (pos)
-		*pos = max_pos;
+	if (pos) {
+		size_t tail = lhs->totlen - max_pos;
+		if (tail > FT_N)
+			tail = FT_N;
+
+		for (size_t i = 0; i < tail; i++) {
+			if (lhs->data[max_pos + i] == max) {
+				*pos = max_pos + i;
+				break;
+			}
+		}
+	}
 
 	return max;
 }

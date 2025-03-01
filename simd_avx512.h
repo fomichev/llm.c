@@ -89,7 +89,6 @@ typedef __m512 avx512_fv_t;
 		AVX512_FV_LOAD(DST, tmp); \
 	})
 
-/* TODO: */
 #define AVX512_FV_REDUCE_SUM(LHS) \
 	({ \
         __m256 v5 = _mm256_add_ps(_mm512_extractf32x8_ps((LHS), 0), \
@@ -99,4 +98,9 @@ typedef __m512 avx512_fv_t;
 		__m128 v2 = _mm_add_ps(v4, _mm_movehl_ps(v4, v4)); \
 		__m128 v1 = _mm_add_ss(v2, _mm_movehdup_ps(v2)); \
 		_mm_cvtss_f32(v1); \
+	})
+
+#define AVX512_FV_REDUCE_MAX(LHS) \
+	({ \
+        _mm512_reduce_max_ps((LHS)); \
 	})

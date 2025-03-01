@@ -33,5 +33,5 @@ static inline void bench_entry(const char *name, uint64_t scale, uint64_t val, u
 {
 	printf("%s=%.9fs/op ", name, to_sec(val / scale));
 	if (base)
-		printf("x%.2f ", (float)base / (float)val);
+		printf("x%.2f ", (double)base / (double)val);
 }
