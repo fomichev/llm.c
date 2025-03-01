@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 typedef struct {
-	FT_TYPE *data;
+	scalar_t *data;
 	uint64_t totlen;
 	uint64_t maxcap;
 	uint64_t dim[4];
@@ -145,7 +145,7 @@ static inline void ft_assert_2d_match(const ft_t *lhs, const ft_t *rhs)
 	assert(lhs->dim[1] == rhs->dim[1]);
 }
 
-void ft_set(ft_t *ret, FT_TYPE val);
+void ft_set(ft_t *ret, scalar_t val);
 #define ft_set_inner(dst, dst_idx, src) \
 do { \
 	assert((dst)->ndim == 2); \
@@ -179,9 +179,9 @@ void ft_div(
 void ft_div_scalar(
 	ft_t *ret,
 	const ft_t *lhs,
-	FT_TYPE scalar);
-FT_TYPE ft_mean(const ft_t *lhs);
-FT_TYPE ft_max(const ft_t *lhs, size_t *pos);
+	scalar_t scalar);
+scalar_t ft_mean(const ft_t *lhs);
+scalar_t ft_max(const ft_t *lhs, size_t *pos);
 
 /* ret = lhs @ rhs + add */
 void ft_mma_2x2(

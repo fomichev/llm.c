@@ -19,7 +19,7 @@ struct gpt2 {
 		bool transposed; /* whether the weights were pre-transposed */
 	};
 
-	FT_TYPE hlen_sq;
+	scalar_t hlen_sq;
 
 	const ft_t *wte;
 	const ft_t *wpe;
@@ -102,7 +102,7 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	size_t H = model->heads;
 	size_t E = model->embeddings;
 
-	model->hlen_sq = sqrt((FT_TYPE)HLEN);
+	model->hlen_sq = sqrt((scalar_t)HLEN);
 
 	assert(H * HLEN == E);
 
@@ -201,7 +201,7 @@ static void layer_norm(
 
 		ft_at(tmp_mat, i, &row);
 
-		FT_TYPE row_mean = ft_mean(&row);
+		scalar_t row_mean = ft_mean(&row);
 
 		fv_t s, e;
 
@@ -210,7 +210,7 @@ static void layer_norm(
 
 		size_t len = ft_len(&row);
 
-		for (size_t j = 0; j < FT_LEN(len); j += FT_N) {
+		for (size_t j = 0; j < fv_chunks(len); j += FV_CHUNK) {
 			fv_t tmp;
 
 			fv_load(&tmp, &row.data[j]);
@@ -218,19 +218,19 @@ static void layer_norm(
 			fv_mul(&tmp, &tmp, &tmp);
 			fv_add(&s, &s, &tmp);
 		}
-		FT_TYPE sum = fv_reduce_sum(&s);
-		for (size_t j = FT_LEN(len); j < len; j++) {
-			FT_TYPE tmp = row.data[j] - row_mean;
+		scalar_t sum = fv_reduce_sum(&s);
+		for (size_t j = fv_chunks(len); j < len; j++) {
+			scalar_t tmp = row.data[j] - row_mean;
 			sum += tmp * tmp;
 		}
 
-		FT_TYPE var = sum / len;
-		FT_TYPE var_sqrt = sqrtf(var + 1e-5);
+		scalar_t var = sum / len;
+		scalar_t var_sqrt = sqrtf(var + 1e-5);
 
 		fv_t vsqrt;
 		fv_load1(&vsqrt, var_sqrt);
 
-		for (size_t j = 0; j < FT_LEN(len); j += FT_N) {
+		for (size_t j = 0; j < fv_chunks(len); j += FV_CHUNK) {
 			fv_t tmp;
 
 			fv_load(&tmp, &row.data[j]);
@@ -238,7 +238,7 @@ static void layer_norm(
 			fv_div(&tmp, &tmp, &vsqrt);
 			fv_store(&row.data[j], &tmp);
 		}
-		for (size_t j = FT_LEN(len); j < len; j++) {
+		for (size_t j = fv_chunks(len); j < len; j++) {
 			row.data[j] = (row.data[j] - row_mean) / var_sqrt;
 		}
 
@@ -255,7 +255,7 @@ static void layer_norm(
 
 static void gelua(ft_t *t)
 {
-	assert(t->totlen % FT_N == 0);
+	assert(t->totlen % FV_CHUNK == 0);
 
 	fv_t vinp;
 	fv_t va;
@@ -272,7 +272,7 @@ static void gelua(ft_t *t)
 	fv_t half;
 	fv_load1(&half, 0.5);
 
-	for (size_t i = 0; i < FT_LEN(t->totlen); i += FT_N) {
+	for (size_t i = 0; i < fv_chunks(t->totlen); i += FV_CHUNK) {
 		fv_load(&vinp, &t->data[i]);
 
 		/* 1.0 + GELU_K2 * inp * inp */
@@ -297,8 +297,8 @@ static void gelua(ft_t *t)
 		fv_store(&t->data[i], &va);
 	}
 
-	for (size_t i = FT_LEN(t->totlen); i < t->totlen; i++) {
-		FT_TYPE inp;
+	for (size_t i = fv_chunks(t->totlen); i < t->totlen; i++) {
+		scalar_t inp;
 
 		inp = t->data[i];
 		t->data[i] = 0.5 * inp * (1.0 + tanhf(GELU_K1 * inp * (1.0 + GELU_K2 * inp * inp)));
@@ -309,7 +309,7 @@ static void softmax_1d(ft_t *t)
 {
 	size_t len = ft_len(t);
 	fv_t vsum, vmax;
-	FT_TYPE max;
+	scalar_t max;
 
 	assert(t->ndim == 1);
 
@@ -320,7 +320,7 @@ static void softmax_1d(ft_t *t)
 	fv_load1(&vsum, 0);
 	fv_load1(&vmax, max);
 
-	for (size_t i = 0; i < FT_LEN(len); i += FT_N) {
+	for (size_t i = 0; i < fv_chunks(len); i += FV_CHUNK) {
 		fv_t vtmp;
 
 		fv_load(&vtmp, &t->data[i]);
@@ -329,21 +329,21 @@ static void softmax_1d(ft_t *t)
 		fv_store(&t->data[i], &vtmp);
 		fv_add(&vsum, &vsum, &vtmp);
 	}
-	FT_TYPE sum = fv_reduce_sum(&vsum);
-	for (size_t i = FT_LEN(len); i < len; i++) {
+	scalar_t sum = fv_reduce_sum(&vsum);
+	for (size_t i = fv_chunks(len); i < len; i++) {
 		t->data[i] = expf(t->data[i] - max);
 		sum += t->data[i];
 	}
 
 	fv_load1(&vsum, sum);
-	for (size_t i = 0; i < FT_LEN(len); i += FT_N) {
+	for (size_t i = 0; i < fv_chunks(len); i += FV_CHUNK) {
 		fv_t tmp;
 
 		fv_load(&tmp, &t->data[i]);
 		fv_div(&tmp, &tmp, &vsum);
 		fv_store(&t->data[i], &tmp);
 	}
-	for (size_t i = FT_LEN(len); i < len; i++) {
+	for (size_t i = fv_chunks(len); i < len; i++) {
 		t->data[i] = t->data[i] / sum;
 	}
 }
@@ -636,7 +636,7 @@ void gpt2_test_no_cache(struct gpt2 *model)
 		profiler_record(12, "wte");
 		ft_reshape_1d(logits, model->vocab_len);
 		softmax_1d(logits);
-		FT_TYPE mx = ft_max(logits, &nextch);
+		scalar_t mx = ft_max(logits, &nextch);
 		profiler_record(13, "max");
 
 		tok[T] = nextch;
@@ -693,7 +693,7 @@ void gpt2_test_cache(struct gpt2 *model)
 		profiler_record(12, "wte");
 		ft_reshape_1d(logits, model->vocab_len);
 		softmax_1d(logits);
-		FT_TYPE mx = ft_max(logits, &nextch);
+		scalar_t mx = ft_max(logits, &nextch);
 		profiler_record(13, "max");
 
 		if (i >= ARRAY_SIZE(inp) - 1)

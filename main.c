@@ -16,7 +16,7 @@ static size_t pick_greedy(ft_t *logits)
 	return token;
 }
 
-static void top_k(ft_t *f, size_t *top_n, FT_TYPE *top_v, size_t k)
+static void top_k(ft_t *f, size_t *top_n, scalar_t *top_v, size_t k)
 {
 	assert(k <= f->totlen);
 
@@ -26,7 +26,7 @@ static void top_k(ft_t *f, size_t *top_n, FT_TYPE *top_v, size_t k)
 	}
 
 	for (size_t i = 1; i < f->totlen; i++) {
-		FT_TYPE new_v = f->data[i];
+		scalar_t new_v = f->data[i];
 		int new_p = -1;
 
 		for (size_t j = 0; j < k; j++) {
@@ -65,7 +65,7 @@ static void top_k_test(void)
 			    8.0   /* 9 */);
 
 	size_t top_n[5];
-	FT_TYPE top_v[5];
+	scalar_t top_v[5];
 
 	top_k(x, &top_n[0], &top_v[0], 5);
 	assert(top_n[0] == 8);
@@ -83,17 +83,17 @@ static void top_k_test(void)
 static size_t pick_top_k(ft_t *logits, size_t k)
 {
 	size_t top_n[k];
-	FT_TYPE top_v[k];
+	scalar_t top_v[k];
 
 	top_k(logits, &top_n[0], &top_v[0], k);
 
-	FT_TYPE max = top_v[0];
+	scalar_t max = top_v[0];
 	for (size_t i = 0; i < k; i++) {
 		if (top_v[i] > max)
 			max = top_v[i];
 	}
 
-	FT_TYPE sum = 0;
+	scalar_t sum = 0;
 	for (size_t i = 0; i < k; i++) {
 		top_v[i] = expf(top_v[i] - max);
 		sum += top_v[i];
@@ -102,7 +102,7 @@ static size_t pick_top_k(ft_t *logits, size_t k)
 	for (size_t i = 0; i < k; i++)
 		top_v[i] = top_v[i] / sum;
 
-	FT_TYPE rem = drand48();
+	scalar_t rem = drand48();
 
 	size_t idx = 0;
 	for (int i = k - 1; i >= 0; i--) {
