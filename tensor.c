@@ -456,9 +456,9 @@ scalar_t tensor_mean(const tensor_t *lhs)
 
 scalar_t tensor_max(const tensor_t *lhs, size_t *pos)
 {
-	size_t max = lhs->data[0];
+	scalar_t max = lhs->data[0];
 	size_t max_pos = 0;
-	size_t res;
+	scalar_t res;
 	vector_t t;
 
 	for (size_t i = 0; i < vector_batches(lhs->totlen); i += VECTOR_BATCH) {

@@ -767,7 +767,7 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 
 		if (pos && pos % 100 == 0) {
 			uint64_t end = profiler_now();
-			fprintf(stderr, "[%d tokens, %.9f sec/tok]", pos, (profiler_to_sec(end-begin))/100);
+			fprintf(stderr, "[%d tokens, %.9f tok/sec]", pos, (100/profiler_to_sec(end-begin)));
 			begin = end;
 		}
 	}
