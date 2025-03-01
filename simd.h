@@ -10,18 +10,18 @@ typedef float scalar_t;
 
 #if defined(__AVX512F__)
 typedef avx512_vector_t vector_t;
-#define VECTOR_CHUNK AVX512_CHUNK
+#define VECTOR_BATCH AVX512_BATCH
 #elif defined(__AVX2__)
 typedef avx2_vector_t vector_t;
-#define VECTOR_CHUNK AVX2_CHUNK
+#define VECTOR_BATCH AVX2_BATCH
 #else
 typedef cpu_vector_t vector_t;
-#define VECTOR_CHUNK CPU_CHUNK
+#define VECTOR_BATCH CPU_BATCH
 #endif
 
-#define VECTOR_ALIGN (sizeof(scalar_t) * VECTOR_CHUNK)
+#define VECTOR_ALIGN (sizeof(scalar_t) * VECTOR_BATCH)
 
-static inline size_t vector_chunks(size_t size)
+static inline size_t vector_batches(size_t size)
 {
     return (size & ~(VECTOR_ALIGN-1));
 }

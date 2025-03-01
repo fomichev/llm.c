@@ -286,11 +286,11 @@ void tensor_set(tensor_t *ret, scalar_t val)
 
 	vector_set(&v, val);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_store(&ret->data[i], &v);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = val;
 	}
 }
@@ -317,14 +317,14 @@ void tensor_add(
 
 	__tensor_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
 		vector_add(&r, &r, &l);
 		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] + rhs->data[i];
 	}
 }
@@ -355,14 +355,14 @@ void tensor_sub(
 
 	__tensor_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
 		vector_sub(&r, &r, &l);
 		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] - rhs->data[i];
 	}
 }
@@ -376,14 +376,14 @@ void tensor_mul(
 
 	__tensor_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
 		vector_mul(&r, &r, &l);
 		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] * rhs->data[i];
 	}
 }
@@ -397,14 +397,14 @@ void tensor_div(
 
 	__tensor_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
 		vector_div(&r, &r, &l);
 		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] / rhs->data[i];
 	}
 }
@@ -421,13 +421,13 @@ void tensor_div_scalar(
 
 	vector_set(&vscalar, scalar);
 
-	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&vtmp, &lhs->data[i]);
 		vector_div(&vtmp, &vtmp, &vscalar);
 		vector_store(&ret->data[i], &vtmp);
 	}
 
-	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_batches(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] / scalar;
 	}
 }
@@ -439,14 +439,14 @@ scalar_t tensor_mean(const tensor_t *lhs)
 
 	vector_set(&s, 0);
 
-	for (size_t i = 0; i < vector_chunks(lhs->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(lhs->totlen); i += VECTOR_BATCH) {
 		vector_load(&t, &lhs->data[i]);
 		vector_add(&s, &s, &t);
-		nr += VECTOR_CHUNK;
+		nr += VECTOR_BATCH;
 	}
 
 	scalar_t sum = vector_reduce_sum(&s);
-	for (size_t i = vector_chunks(lhs->totlen); i < lhs->totlen; i++) {
+	for (size_t i = vector_batches(lhs->totlen); i < lhs->totlen; i++) {
 		sum += lhs->data[i];
 		nr++;
 	}
@@ -461,7 +461,7 @@ scalar_t tensor_max(const tensor_t *lhs, size_t *pos)
 	size_t res;
 	vector_t t;
 
-	for (size_t i = 0; i < vector_chunks(lhs->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(lhs->totlen); i += VECTOR_BATCH) {
 		vector_load(&t, &lhs->data[i]);
 		res = vector_reduce_max(&t);
 		if (res > max) {
@@ -470,7 +470,7 @@ scalar_t tensor_max(const tensor_t *lhs, size_t *pos)
 		}
 	}
 
-	for (size_t i = vector_chunks(lhs->totlen); i < lhs->totlen; i++) {
+	for (size_t i = vector_batches(lhs->totlen); i < lhs->totlen; i++) {
 		if (lhs->data[i] > max) {
 			max = lhs->data[i];
 			max_pos = i;
@@ -479,8 +479,8 @@ scalar_t tensor_max(const tensor_t *lhs, size_t *pos)
 
 	if (pos) {
 		size_t tail = lhs->totlen - max_pos;
-		if (tail > VECTOR_CHUNK)
-			tail = VECTOR_CHUNK;
+		if (tail > VECTOR_BATCH)
+			tail = VECTOR_BATCH;
 
 		for (size_t i = 0; i < tail; i++) {
 			if (lhs->data[max_pos + i] == max) {

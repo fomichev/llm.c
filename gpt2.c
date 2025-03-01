@@ -210,7 +210,7 @@ static void layer_norm(
 
 		size_t len = tensor_len(&row);
 
-		for (size_t j = 0; j < vector_chunks(len); j += VECTOR_CHUNK) {
+		for (size_t j = 0; j < vector_batches(len); j += VECTOR_BATCH) {
 			vector_t tmp;
 
 			vector_load(&tmp, &row.data[j]);
@@ -219,7 +219,7 @@ static void layer_norm(
 			vector_add(&s, &s, &tmp);
 		}
 		scalar_t sum = vector_reduce_sum(&s);
-		for (size_t j = vector_chunks(len); j < len; j++) {
+		for (size_t j = vector_batches(len); j < len; j++) {
 			scalar_t tmp = row.data[j] - row_mean;
 			sum += tmp * tmp;
 		}
@@ -230,7 +230,7 @@ static void layer_norm(
 		vector_t vsqrt;
 		vector_set(&vsqrt, var_sqrt);
 
-		for (size_t j = 0; j < vector_chunks(len); j += VECTOR_CHUNK) {
+		for (size_t j = 0; j < vector_batches(len); j += VECTOR_BATCH) {
 			vector_t tmp;
 
 			vector_load(&tmp, &row.data[j]);
@@ -238,7 +238,7 @@ static void layer_norm(
 			vector_div(&tmp, &tmp, &vsqrt);
 			vector_store(&row.data[j], &tmp);
 		}
-		for (size_t j = vector_chunks(len); j < len; j++) {
+		for (size_t j = vector_batches(len); j < len; j++) {
 			row.data[j] = (row.data[j] - row_mean) / var_sqrt;
 		}
 
@@ -255,7 +255,7 @@ static void layer_norm(
 
 static void gelua(tensor_t *t)
 {
-	assert(t->totlen % VECTOR_CHUNK == 0);
+	assert(t->totlen % VECTOR_BATCH == 0);
 
 	vector_t vinp;
 	vector_t va;
@@ -272,7 +272,7 @@ static void gelua(tensor_t *t)
 	vector_t half;
 	vector_set(&half, 0.5);
 
-	for (size_t i = 0; i < vector_chunks(t->totlen); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(t->totlen); i += VECTOR_BATCH) {
 		vector_load(&vinp, &t->data[i]);
 
 		/* 1.0 + GELU_K2 * inp * inp */
@@ -297,7 +297,7 @@ static void gelua(tensor_t *t)
 		vector_store(&t->data[i], &va);
 	}
 
-	for (size_t i = vector_chunks(t->totlen); i < t->totlen; i++) {
+	for (size_t i = vector_batches(t->totlen); i < t->totlen; i++) {
 		scalar_t inp;
 
 		inp = t->data[i];
@@ -320,7 +320,7 @@ static void softmax_1d(tensor_t *t)
 	vector_set(&vsum, 0);
 	vector_set(&vmax, max);
 
-	for (size_t i = 0; i < vector_chunks(len); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(len); i += VECTOR_BATCH) {
 		vector_t vtmp;
 
 		vector_load(&vtmp, &t->data[i]);
@@ -330,20 +330,20 @@ static void softmax_1d(tensor_t *t)
 		vector_add(&vsum, &vsum, &vtmp);
 	}
 	scalar_t sum = vector_reduce_sum(&vsum);
-	for (size_t i = vector_chunks(len); i < len; i++) {
+	for (size_t i = vector_batches(len); i < len; i++) {
 		t->data[i] = expf(t->data[i] - max);
 		sum += t->data[i];
 	}
 
 	vector_set(&vsum, sum);
-	for (size_t i = 0; i < vector_chunks(len); i += VECTOR_CHUNK) {
+	for (size_t i = 0; i < vector_batches(len); i += VECTOR_BATCH) {
 		vector_t tmp;
 
 		vector_load(&tmp, &t->data[i]);
 		vector_div(&tmp, &tmp, &vsum);
 		vector_store(&t->data[i], &tmp);
 	}
-	for (size_t i = vector_chunks(len); i < len; i++) {
+	for (size_t i = vector_batches(len); i < len; i++) {
 		t->data[i] = t->data[i] / sum;
 	}
 }

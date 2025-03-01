@@ -7,8 +7,7 @@
 
 typedef __m512 avx512_vector_t;
 
-#define AVX512_CHUNK   16
-#define avx512_CHUNK   16
+#define AVX512_BATCH   16
 
 static inline void avx512_vector_load(avx512_vector_t *dst, scalar_t *src)
 {
@@ -47,10 +46,10 @@ static inline void avx512_vector_div(avx512_vector_t *dst, avx512_vector_t *lhs,
 
 static inline void avx512_vector_exp(avx512_vector_t *dst, avx512_vector_t *lhs)
 {
-	scalar_t tmp[AVX512_CHUNK]; \
+	scalar_t tmp[AVX512_BATCH]; \
 	avx512_vector_store(tmp, lhs);
 #pragma unroll
-	for (size_t i = 0; i < AVX512_CHUNK; i++) {
+	for (size_t i = 0; i < AVX512_BATCH; i++) {
 		tmp[i] = expf(tmp[i]);
 	}
 	avx512_vector_load(dst, tmp);
@@ -58,10 +57,10 @@ static inline void avx512_vector_exp(avx512_vector_t *dst, avx512_vector_t *lhs)
 
 static inline void avx512_vector_tanh(avx512_vector_t *dst, avx512_vector_t *lhs)
 {
-	scalar_t tmp[AVX512_CHUNK]; \
+	scalar_t tmp[AVX512_BATCH]; \
 	avx512_vector_store(tmp, lhs);
 #pragma unroll
-	for (size_t i = 0; i < AVX512_CHUNK; i++) {
+	for (size_t i = 0; i < AVX512_BATCH; i++) {
 		tmp[i] = tanh(tmp[i]);
 	}
 	avx512_vector_load(dst, tmp);

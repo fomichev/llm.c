@@ -7,8 +7,7 @@
 
 typedef __m256 avx2_vector_t;
 
-#define AVX2_CHUNK   8
-#define avx2_CHUNK   8
+#define AVX2_BATCH   8
 
 static inline void avx2_vector_load(avx2_vector_t *dst, scalar_t *src)
 {
@@ -47,10 +46,10 @@ static inline void avx2_vector_div(avx2_vector_t *dst, avx2_vector_t *lhs, avx2_
 
 static inline void avx2_vector_exp(avx2_vector_t *dst, avx2_vector_t *lhs)
 {
-	scalar_t tmp[AVX2_CHUNK]; \
+	scalar_t tmp[AVX2_BATCH]; \
 	avx2_vector_store(tmp, lhs);
 #pragma unroll
-	for (size_t i = 0; i < AVX2_CHUNK; i++) {
+	for (size_t i = 0; i < AVX2_BATCH; i++) {
 		tmp[i] = expf(tmp[i]);
 	}
 	avx2_vector_load(dst, tmp);
@@ -58,10 +57,10 @@ static inline void avx2_vector_exp(avx2_vector_t *dst, avx2_vector_t *lhs)
 
 static inline void avx2_vector_tanh(avx2_vector_t *dst, avx2_vector_t *lhs)
 {
-	scalar_t tmp[AVX2_CHUNK]; \
+	scalar_t tmp[AVX2_BATCH]; \
 	avx2_vector_store(tmp, lhs);
 #pragma unroll
-	for (size_t i = 0; i < AVX2_CHUNK; i++) {
+	for (size_t i = 0; i < AVX2_BATCH; i++) {
 		tmp[i] = tanh(tmp[i]);
 	}
 	avx2_vector_load(dst, tmp);
@@ -77,9 +76,9 @@ static inline scalar_t avx2_vector_reduce_sum(avx2_vector_t *lhs)
 
 static inline scalar_t avx2_vector_reduce_max(avx2_vector_t *lhs)
 {
-	scalar_t tmp[AVX2_CHUNK];
+	scalar_t tmp[AVX2_BATCH];
 	avx2_vector_store(tmp, lhs);
-	for (size_t i = 1; i < AVX2_CHUNK; i++) {
+	for (size_t i = 1; i < AVX2_BATCH; i++) {
         if (tmp[i] > tmp[0]) {
             tmp[0] = tmp[i];
         }
