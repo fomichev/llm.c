@@ -1,3 +1,5 @@
+LIBS=-lm
+
 #BLAS_CFLAGS=$(shell pkg-config --cflags cblas)
 #BLAS_LDFLAGS=$(shell pkg-config --libs cblas)
 
@@ -13,13 +15,17 @@ BLAS_LDFLAGS=$(shell pkg-config --libs openblas)
 #BLAS_CFLAGS=-I/opt/rocm/include
 #BLAS_LDFLAGS=-L/opt/rocm/lib -lrocblas -Dcblas_sgemm=rocblas_sgemm
 
+SLEEF_CFLAGS=-I$(HOME)/src/sleef/install/include -D USE_SLEEF
+SLEEF_LDFLAGS=-L$(HOME)/src/sleef/install/lib
+LIBS+=-lsleef
+
 #export SRAND48_SEED=1337
 
 O=3
 GPT2_EVAL_ROUNDS?=10
 
-CFLAGS=$(BLAS_CFLAGS) -I. -O$(O) -march=native -DGPT2_EVAL_ROUNDS=$(GPT2_EVAL_ROUNDS) -rdynamic
-LDFLAGS=$(BLAS_LDFLAGS) -lm
+CFLAGS=$(SLEEF_CFLAGS) $(BLAS_CFLAGS) -I. -O$(O) -march=native -DGPT2_EVAL_ROUNDS=$(GPT2_EVAL_ROUNDS) -rdynamic
+LDFLAGS=$(SLEEF_LDFLAGS) $(BLAS_LDFLAGS)
 CC=clang
 
 M=124M
@@ -34,12 +40,13 @@ all:
 	./llmc gpt2_$(M).llmc In the morning I was able to
 
 build:
-	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c snapshot.c vocab.c tensor.c -o llmc
+	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c snapshot.c vocab.c tensor.c $(LIBS) -o llmc
+	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c snapshot.c vocab.c tensor.c $(LIBS) -o llmc
 
 check:
 	$(MAKE) build
-	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c && ./a.out
-	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c && ./a.out
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
 	./llmc gpt2_$(M).llmc
 
 flamegraph:

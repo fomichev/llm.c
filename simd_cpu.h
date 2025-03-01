@@ -3,7 +3,6 @@
 #include <math.h>
 
 #define CPU_BATCH   4
-#define cpu_BATCH   4
 
 typedef struct {
 	scalar_t v [CPU_BATCH];
@@ -14,7 +13,7 @@ static inline void cpu_vector_load(cpu_vector_t *dst, scalar_t *src)
 	__builtin_memcpy(dst, src, CPU_BATCH * sizeof(scalar_t));
 }
 
-static inline void cpu_vector_load1(cpu_vector_t *dst, scalar_t val)
+static inline void cpu_vector_set(cpu_vector_t *dst, scalar_t val)
 {
 	for (size_t i = 0; i < CPU_BATCH; i++) {
 		dst->v[i] = val;
@@ -56,7 +55,7 @@ static inline void cpu_vector_div(cpu_vector_t *dst, cpu_vector_t *lhs, cpu_vect
 
 static inline void cpu_vector_exp(cpu_vector_t *dst, cpu_vector_t *lhs)
 {
-#pragma unroll
+#pragma unroll(CPU_BATCH)
 	for (size_t i = 0; i < CPU_BATCH; i++) {
 		dst->v[i] = expf(lhs->v[i]);
 	}
@@ -64,7 +63,7 @@ static inline void cpu_vector_exp(cpu_vector_t *dst, cpu_vector_t *lhs)
 
 static inline void cpu_vector_tanh(cpu_vector_t *dst, cpu_vector_t *lhs)
 {
-#pragma unroll
+#pragma unroll(CPU_BATCH)
 	for (size_t i = 0; i < CPU_BATCH; i++) {
 		dst->v[i] = tanhf(lhs->v[i]);
 	}
@@ -73,7 +72,7 @@ static inline void cpu_vector_tanh(cpu_vector_t *dst, cpu_vector_t *lhs)
 static inline scalar_t cpu_vector_reduce_sum(cpu_vector_t *lhs)
 {
 	scalar_t sum = 0;
-#pragma unroll
+#pragma unroll(CPU_BATCH)
 	for (size_t i = 0; i < CPU_BATCH; i++) {
 		sum += lhs->v[i];
 	}
@@ -83,7 +82,7 @@ static inline scalar_t cpu_vector_reduce_sum(cpu_vector_t *lhs)
 static inline scalar_t cpu_vector_reduce_max(cpu_vector_t *lhs)
 {
 	scalar_t ret = lhs->v[0];
-#pragma unroll
+#pragma unroll(CPU_BATCH)
 	for (size_t i = 0; i < CPU_BATCH; i++) {
 		if (lhs->v[i] > ret) {
 			ret = lhs->v[i];

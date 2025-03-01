@@ -2,6 +2,9 @@
 
 #include <math.h>
 #include <immintrin.h>
+#ifdef USE_SLEEF
+#include <sleef.h>
+#endif
 
 /* https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html */
 
@@ -14,7 +17,7 @@ static inline void avx512_vector_load(avx512_vector_t *dst, scalar_t *src)
 	*dst = _mm512_loadu_ps(src); \
 }
 
-static inline void avx512_vector_load1(avx512_vector_t *dst, scalar_t val)
+static inline void avx512_vector_set(avx512_vector_t *dst, scalar_t val)
 {
 	*dst = _mm512_set1_ps(val);
 }
@@ -46,24 +49,32 @@ static inline void avx512_vector_div(avx512_vector_t *dst, avx512_vector_t *lhs,
 
 static inline void avx512_vector_exp(avx512_vector_t *dst, avx512_vector_t *lhs)
 {
+#ifdef USE_SLEEF
+    *dst = Sleef_expf16_u10(*lhs);
+#else
 	scalar_t tmp[AVX512_BATCH]; \
 	avx512_vector_store(tmp, lhs);
-#pragma unroll
+#pragma unroll(AVX512_BATCH)
 	for (size_t i = 0; i < AVX512_BATCH; i++) {
 		tmp[i] = expf(tmp[i]);
 	}
 	avx512_vector_load(dst, tmp);
+#endif
 }
 
 static inline void avx512_vector_tanh(avx512_vector_t *dst, avx512_vector_t *lhs)
 {
+#ifdef USE_SLEEF
+    *dst = Sleef_tanhf16_u10(*lhs);
+#else
 	scalar_t tmp[AVX512_BATCH]; \
 	avx512_vector_store(tmp, lhs);
-#pragma unroll
+#pragma unroll(AVX512_BATCH)
 	for (size_t i = 0; i < AVX512_BATCH; i++) {
 		tmp[i] = tanh(tmp[i]);
 	}
 	avx512_vector_load(dst, tmp);
+#endif
 }
 
 static inline scalar_t avx512_vector_reduce_sum(avx512_vector_t *lhs)

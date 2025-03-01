@@ -40,11 +40,11 @@ static inline void vector_load(vector_t *dst, scalar_t *src)
 static inline void vector_set(vector_t *dst, scalar_t val)
 {
 #if defined(__AVX512F__)
-    avx512_vector_load1(dst, val);
+    avx512_vector_set(dst, val);
 #elif defined(__AVX2__)
-    avx2_vector_load1(dst, val);
+    avx2_vector_set(dst, val);
 #else
-    cpu_vector_load1(dst, val);
+    cpu_vector_set(dst, val);
 #endif
 }
 

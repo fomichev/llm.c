@@ -2,6 +2,9 @@
 
 #include <math.h>
 #include <immintrin.h>
+#ifdef USE_SLEEF
+#include <sleef.h>
+#endif
 
 /* https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html */
 
@@ -14,7 +17,7 @@ static inline void avx2_vector_load(avx2_vector_t *dst, scalar_t *src)
 	*dst = _mm256_loadu_ps(src);
 }
 
-static inline void avx2_vector_load1(avx2_vector_t *dst, scalar_t val)
+static inline void avx2_vector_set(avx2_vector_t *dst, scalar_t val)
 {
 	*dst = _mm256_set1_ps(val);
 }
@@ -46,24 +49,32 @@ static inline void avx2_vector_div(avx2_vector_t *dst, avx2_vector_t *lhs, avx2_
 
 static inline void avx2_vector_exp(avx2_vector_t *dst, avx2_vector_t *lhs)
 {
+#ifdef USE_SLEEF
+    *dst = Sleef_expf8_u10(*lhs);
+#else
 	scalar_t tmp[AVX2_BATCH]; \
 	avx2_vector_store(tmp, lhs);
-#pragma unroll
+#pragma unroll(AVX2_BATCH)
 	for (size_t i = 0; i < AVX2_BATCH; i++) {
 		tmp[i] = expf(tmp[i]);
 	}
 	avx2_vector_load(dst, tmp);
+#endif
 }
 
 static inline void avx2_vector_tanh(avx2_vector_t *dst, avx2_vector_t *lhs)
 {
+#ifdef USE_SLEEF
+    *dst = Sleef_tanhf8_u10(*lhs);
+#else
 	scalar_t tmp[AVX2_BATCH]; \
 	avx2_vector_store(tmp, lhs);
-#pragma unroll
+#pragma unroll(AVX2_BATCH)
 	for (size_t i = 0; i < AVX2_BATCH; i++) {
 		tmp[i] = tanh(tmp[i]);
 	}
 	avx2_vector_load(dst, tmp);
+#endif
 }
 
 static inline scalar_t avx2_vector_reduce_sum(avx2_vector_t *lhs)
