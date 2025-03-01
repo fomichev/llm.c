@@ -194,6 +194,10 @@ int main(int argc, char *argv[])
 	}
 
 	model = gpt2_load(ss);
+	if (!model) {
+		printf("failed to load model\n");
+		return EXIT_FAILURE;
+	}
 	if (argc == 2) {
 		top_k_test();
 		gpt2_test_no_cache(model);
