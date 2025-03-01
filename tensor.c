@@ -284,10 +284,10 @@ void ft_set(ft_t *ret, FT_TYPE val)
 		return;
 	}
 
-	FV_LOAD1(v, val);
+	fv_load1(&v, val);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_STORE(&ret->data[i], v);
+		fv_store(&ret->data[i], &v);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -318,10 +318,10 @@ void ft_add(
 	__ft_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_LOAD(l, &lhs->data[i]);
-		FV_LOAD(r, &rhs->data[i]);
-		FV_ADD(r, r, l);
-		FV_STORE(&ret->data[i], r);
+		fv_load(&l, &lhs->data[i]);
+		fv_load(&r, &rhs->data[i]);
+		fv_add(&r, &r, &l);
+		fv_store(&ret->data[i], &r);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -356,10 +356,10 @@ void ft_sub(
 	__ft_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_LOAD(l, &lhs->data[i]);
-		FV_LOAD(r, &rhs->data[i]);
-		FV_SUB(r, r, l);
-		FV_STORE(&ret->data[i], r);
+		fv_load(&l, &lhs->data[i]);
+		fv_load(&r, &rhs->data[i]);
+		fv_sub(&r, &r, &l);
+		fv_store(&ret->data[i], &r);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -377,10 +377,10 @@ void ft_mul(
 	__ft_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_LOAD(l, &lhs->data[i]);
-		FV_LOAD(r, &rhs->data[i]);
-		FV_MUL(r, r, l);
-		FV_STORE(&ret->data[i], r);
+		fv_load(&l, &lhs->data[i]);
+		fv_load(&r, &rhs->data[i]);
+		fv_mul(&r, &r, &l);
+		fv_store(&ret->data[i], &r);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -398,10 +398,10 @@ void ft_div(
 	__ft_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_LOAD(l, &lhs->data[i]);
-		FV_LOAD(r, &rhs->data[i]);
-		FV_DIV(r, r, l);
-		FV_STORE(&ret->data[i], r);
+		fv_load(&l, &lhs->data[i]);
+		fv_load(&r, &rhs->data[i]);
+		fv_div(&r, &r, &l);
+		fv_store(&ret->data[i], &r);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -419,12 +419,12 @@ void ft_div_scalar(
 
 	__ft_same_size(ret, lhs, NULL);
 
-	FV_LOAD1(vscalar, scalar);
+	fv_load1(&vscalar, scalar);
 
 	for (size_t i = 0; i < FT_LEN(ret->totlen); i += FT_N) {
-		FV_LOAD(vtmp, &lhs->data[i]);
-		FV_DIV(vtmp, vtmp, vscalar);
-		FV_STORE(&ret->data[i], vtmp);
+		fv_load(&vtmp, &lhs->data[i]);
+		fv_div(&vtmp, &vtmp, &vscalar);
+		fv_store(&ret->data[i], &vtmp);
 	}
 
 	for (size_t i = FT_LEN(ret->totlen); i < ret->totlen; i++) {
@@ -437,15 +437,15 @@ FT_TYPE ft_mean(const ft_t *lhs)
 	size_t nr = 0;
 	fv_t t, s;
 
-	FV_LOAD1(s, 0);
+	fv_load1(&s, 0);
 
 	for (size_t i = 0; i < FT_LEN(lhs->totlen); i += FT_N) {
-		FV_LOAD(t, &lhs->data[i]);
-		FV_ADD(s, s, t);
+		fv_load(&t, &lhs->data[i]);
+		fv_add(&s, &s, &t);
 		nr += FT_N;
 	}
 
-	FT_TYPE sum = FV_REDUCE_SUM(s);
+	FT_TYPE sum = fv_reduce_sum(&s);
 	for (size_t i = FT_LEN(lhs->totlen); i < lhs->totlen; i++) {
 		sum += lhs->data[i];
 		nr++;
@@ -462,8 +462,8 @@ FT_TYPE ft_max(const ft_t *lhs, size_t *pos)
 	fv_t t;
 
 	for (size_t i = 0; i < FT_LEN(lhs->totlen); i += FT_N) {
-		FV_LOAD(t, &lhs->data[i]);
-		res = FV_REDUCE_MAX(t);
+		fv_load(&t, &lhs->data[i]);
+		res = fv_reduce_max(&t);
 		if (res > max) {
 			max = res;
 			max_pos = i;

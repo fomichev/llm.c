@@ -205,20 +205,20 @@ static void layer_norm(
 
 		fv_t s, e;
 
-		FV_LOAD1(s, 0);
-		FV_LOAD1(e, row_mean);
+		fv_load1(&s, 0);
+		fv_load1(&e, row_mean);
 
 		size_t len = ft_len(&row);
 
 		for (size_t j = 0; j < FT_LEN(len); j += FT_N) {
 			fv_t tmp;
 
-			FV_LOAD(tmp, &row.data[j]);
-			FV_SUB(tmp, tmp, e);
-			FV_MUL(tmp, tmp, tmp);
-			FV_ADD(s, s, tmp);
+			fv_load(&tmp, &row.data[j]);
+			fv_sub(&tmp, &tmp, &e);
+			fv_mul(&tmp, &tmp, &tmp);
+			fv_add(&s, &s, &tmp);
 		}
-		FT_TYPE sum = FV_REDUCE_SUM(s);
+		FT_TYPE sum = fv_reduce_sum(&s);
 		for (size_t j = FT_LEN(len); j < len; j++) {
 			FT_TYPE tmp = row.data[j] - row_mean;
 			sum += tmp * tmp;
@@ -228,15 +228,15 @@ static void layer_norm(
 		FT_TYPE var_sqrt = sqrtf(var + 1e-5);
 
 		fv_t vsqrt;
-		FV_LOAD1(vsqrt, var_sqrt);
+		fv_load1(&vsqrt, var_sqrt);
 
 		for (size_t j = 0; j < FT_LEN(len); j += FT_N) {
 			fv_t tmp;
 
-			FV_LOAD(tmp, &row.data[j]);
-			FV_SUB(tmp, tmp, e);
-			FV_DIV(tmp, tmp, vsqrt);
-			FV_STORE(&row.data[j], tmp);
+			fv_load(&tmp, &row.data[j]);
+			fv_sub(&tmp, &tmp, &e);
+			fv_div(&tmp, &tmp, &vsqrt);
+			fv_store(&row.data[j], &tmp);
 		}
 		for (size_t j = FT_LEN(len); j < len; j++) {
 			row.data[j] = (row.data[j] - row_mean) / var_sqrt;
@@ -261,40 +261,40 @@ static void gelua(ft_t *t)
 	fv_t va;
 
 	fv_t k1;
-	FV_LOAD1(k1, GELU_K1);
+	fv_load1(&k1, GELU_K1);
 
 	fv_t k2;
-	FV_LOAD1(k2, GELU_K2);
+	fv_load1(&k2, GELU_K2);
 
 	fv_t one;
-	FV_LOAD1(one, 1.0);
+	fv_load1(&one, 1.0);
 
 	fv_t half;
-	FV_LOAD1(half, 0.5);
+	fv_load1(&half, 0.5);
 
 	for (size_t i = 0; i < FT_LEN(t->totlen); i += FT_N) {
-		FV_LOAD(vinp, &t->data[i]);
+		fv_load(&vinp, &t->data[i]);
 
 		/* 1.0 + GELU_K2 * inp * inp */
-		FV_MUL(va, vinp, vinp);
-		FV_MUL(va, va, k2);
-		FV_ADD(va, va, one);
+		fv_mul(&va, &vinp, &vinp);
+		fv_mul(&va, &va, &k2);
+		fv_add(&va, &va, &one);
 
 		/* tanh() */
-		FV_MUL(va, va, vinp);
-		FV_MUL(va, va, k1);
-		FV_TANH(va, va);
+		fv_mul(&va, &va, &vinp);
+		fv_mul(&va, &va, &k1);
+		fv_tanh(&va, &va);
 
 		/* 1.0 + tanh() */
-		FV_ADD(va, va, one);
+		fv_add(&va, &va, &one);
 
 		/* 0.5 * (1.0 + tanh()) */
-		FV_MUL(va, va, half);
+		fv_mul(&va, &va, &half);
 
 		/* inp * 0.5 * (1.0 * tanh()) */
-		FV_MUL(va, va, vinp);
+		fv_mul(&va, &va, &vinp);
 
-		FV_STORE(&t->data[i], va);
+		fv_store(&t->data[i], &va);
 	}
 
 	for (size_t i = FT_LEN(t->totlen); i < t->totlen; i++) {
@@ -317,31 +317,31 @@ static void softmax_1d(ft_t *t)
 
 	max = ft_max(t, NULL);
 
-	FV_LOAD1(vsum, 0);
-	FV_LOAD1(vmax, max);
+	fv_load1(&vsum, 0);
+	fv_load1(&vmax, max);
 
 	for (size_t i = 0; i < FT_LEN(len); i += FT_N) {
 		fv_t vtmp;
 
-		FV_LOAD(vtmp, &t->data[i]);
-		FV_SUB(vtmp, vtmp, vmax);
-		FV_EXP(vtmp, vtmp);
-		FV_STORE(&t->data[i], vtmp);
-		FV_ADD(vsum, vsum, vtmp);
+		fv_load(&vtmp, &t->data[i]);
+		fv_sub(&vtmp, &vtmp, &vmax);
+		fv_exp(&vtmp, &vtmp);
+		fv_store(&t->data[i], &vtmp);
+		fv_add(&vsum, &vsum, &vtmp);
 	}
-	FT_TYPE sum = FV_REDUCE_SUM(vsum);
+	FT_TYPE sum = fv_reduce_sum(&vsum);
 	for (size_t i = FT_LEN(len); i < len; i++) {
 		t->data[i] = expf(t->data[i] - max);
 		sum += t->data[i];
 	}
 
-	FV_LOAD1(vsum, sum);
+	fv_load1(&vsum, sum);
 	for (size_t i = 0; i < FT_LEN(len); i += FT_N) {
 		fv_t tmp;
 
-		FV_LOAD(tmp, &t->data[i]);
-		FV_DIV(tmp, tmp, vsum);
-		FV_STORE(&t->data[i], tmp);
+		fv_load(&tmp, &t->data[i]);
+		fv_div(&tmp, &tmp, &vsum);
+		fv_store(&t->data[i], &tmp);
 	}
 	for (size_t i = FT_LEN(len); i < len; i++) {
 		t->data[i] = t->data[i] / sum;

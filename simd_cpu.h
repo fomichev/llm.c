@@ -1,86 +1,92 @@
 #pragma once
 
+#include <math.h>
+
 #define CPU_N   4
 
 typedef struct {
 	FT_TYPE v[CPU_N];
 } cpu_fv_t;
 
-#define CPU_FV_LOAD(DST, SRC) \
-	({ \
-		__builtin_memcpy(&(DST).v[0], (SRC), CPU_N * FT_SIZEOF); \
-	})
+static inline void CPU_fv_load(cpu_fv_t *dst, FT_TYPE *src)
+{
+	__builtin_memcpy(dst, src, CPU_N * FT_SIZEOF);
+}
 
-#define CPU_FV_LOAD1(DST, VAL) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = (VAL); \
-		} \
-	})
+static inline void cpu_fv_load(cpu_fv_t *dst, FT_TYPE val)
+{
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = val;
+	}
+}
 
-#define CPU_FV_STORE(DST, SRC) \
-	({ \
-		__builtin_memcpy((DST), &(SRC).v[0], CPU_N * FT_SIZEOF); \
-	})
+static inline void CPU_fv_store(FT_TYPE *dst, cpu_fv_t *src)
+{
+	__builtin_memcpy(dst, src, CPU_N * FT_SIZEOF);
+}
 
-#define CPU_FV_ADD(DST, LHS, RHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = (LHS).v[i] + (RHS).v[i]; \
-		} \
-	})
+static inline void CPU_fv_add(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+{
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = lhs->v[i] + rhs->v[i];
+	}
+}
 
-#define CPU_FV_SUB(DST, LHS, RHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = (LHS).v[i] - (RHS).v[i]; \
-		} \
-	})
+static inline void CPU_fv_sub(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+{
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = lhs->v[i] - rhs->v[i];
+	}
+}
 
-#define CPU_FV_MUL(DST, LHS, RHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = (LHS).v[i] * (RHS).v[i]; \
-		} \
-	})
+static inline void CPU_fv_mul(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+{
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = lhs->v[i] * rhs->v[i];
+	}
+}
 
-#define CPU_FV_DIV(DST, LHS, RHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = (LHS).v[i] / (RHS).v[i]; \
-		} \
-	})
+static inline void CPU_fv_div(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+{
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = lhs->v[i] / rhs->v[i];
+	}
+}
 
-#define CPU_FV_EXP(DST, LHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = expf((LHS).v[i]); \
-		} \
-	})
+static inline void CPU_fv_exp(cpu_fv_t *dst, cpu_fv_t *lhs)
+{
+#pragma unroll
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = expf(lhs->v[i]);
+	}
+}
 
-#define CPU_FV_TANH(DST, LHS) \
-	({ \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			(DST).v[i] = tanhf((LHS).v[i]); \
-		} \
-	})
+static inline void CPU_fv_tanh(cpu_fv_t *dst, cpu_fv_t *lhs)
+{
+#pragma unroll
+	for (size_t i = 0; i < CPU_N; i++) {
+		dst->v[i] = tanhf(lhs->v[i]);
+	}
+}
 
-#define CPU_FV_REDUCE_SUM(LHS) \
-	({ \
-		FT_TYPE sum = 0; \
-		for (size_t i = 0; i < CPU_N; i++) { \
-			sum += (LHS).v[i]; \
-		} \
-		sum; \
-	})
+static inline FT_TYPE CPU_fv_reduce_sum(cpu_fv_t *lhs)
+{
+	FT_TYPE sum = 0;
+#pragma unroll
+	for (size_t i = 0; i < CPU_N; i++) {
+		sum += lhs->v[i];
+	}
+	return sum;
+}
 
-#define CPU_FV_REDUCE_MAX(LHS) \
-	({ \
-		FT_TYPE ret = (LHS).v[0]; \
-		for (size_t i = 0; i < CPU_N; i++) { \
-            if ((LHS).v[i] > ret) { \
-			    ret = (LHS).v[i]; \
-            } \
-		} \
-		ret; \
-	})
+static inline FT_TYPE CPU_fv_reduce_max(cpu_fv_t *lhs)
+{
+	FT_TYPE ret = lhs->v[0];
+#pragma unroll
+	for (size_t i = 0; i < CPU_N; i++) {
+		if (lhs->v[i] > ret) {
+			ret = lhs->v[i];
+		}
+	}
+	return ret;
+}
