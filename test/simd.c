@@ -7,7 +7,7 @@ static scalar_t *bench_alloc(size_t num, double value)
 {
 	scalar_t *vec;
 
-	vec = aligned_alloc(FV_ALIGN, sizeof(scalar_t) * num);
+	vec = aligned_alloc(VECTOR_ALIGN, sizeof(scalar_t) * num);
 
 	for (int i = 0; i < num; i++)
 		vec[i] = value;
@@ -36,12 +36,12 @@ static void bench_verify(scalar_t *vec, size_t num, double expected)
 		memset(ret, 0, num * sizeof(scalar_t)); \
 		uint64_t start = now(); \
 		for (int i = 0; i < ROUNDS; i++) { \
-			PREFIX ## _fv_t vret, vlhs, vrhs; \
+			PREFIX ## _vector_t vret, vlhs, vrhs; \
 			for (int j = 0; j < num; j += CHUNK) { \
-				PREFIX ## _fv_load(&vlhs, &lhs[j]); \
-				PREFIX ## _fv_load(&vrhs, &rhs[j]); \
-				PREFIX ## _ ## OP(&vret, &vlhs, &vrhs); \
-				PREFIX ## _fv_store(&ret[j], &vret); \
+				PREFIX ## _vector_load(&vlhs, &lhs[j]); \
+				PREFIX ## _vector_load(&vrhs, &rhs[j]); \
+				PREFIX ## _vector_ ## OP(&vret, &vlhs, &vrhs); \
+				PREFIX ## _vector_store(&ret[j], &vret); \
 			} \
 		} \
 		now() - start; \
@@ -55,16 +55,16 @@ static void bench_add(int rounds, int num)
 
 	bench_begin("add");
 
-	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, fv_add, rounds);
+	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, add, rounds);
 	bench_verify(ret, num, 5);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, fv_add, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, add, rounds);
 	bench_verify(ret, num, 5);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, fv_add, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, add, rounds);
 	bench_verify(ret, num, 5);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -80,16 +80,16 @@ static void bench_sub(int rounds, int num)
 
 	bench_begin("sub");
 
-	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, fv_sub, rounds);
+	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, sub, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, fv_sub, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, sub, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, fv_sub, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, sub, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -105,16 +105,16 @@ static void bench_mul(int rounds, int num)
 
 	bench_begin("mul");
 
-	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, fv_mul, rounds);
+	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, mul, rounds);
 	bench_verify(ret, num, 6);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, fv_mul, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, mul, rounds);
 	bench_verify(ret, num, 6);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, fv_mul, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, mul, rounds);
 	bench_verify(ret, num, 6);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -130,16 +130,16 @@ static void bench_div(int rounds, int num)
 
 	bench_begin("div");
 
-	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, fv_div, rounds);
+	uint64_t duration_base = BENCHMARK_OP2(cpu, CPU_CHUNK, div, rounds);
 	bench_verify(ret, num, 3);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, fv_div, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP2(avx2, AVX2_CHUNK, div, rounds);
 	bench_verify(ret, num, 3);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, fv_div, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP2(avx512, AVX512_CHUNK, div, rounds);
 	bench_verify(ret, num, 3);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -152,11 +152,11 @@ static void bench_div(int rounds, int num)
 		memset(ret, 0, num * sizeof(scalar_t)); \
 		uint64_t start = now(); \
 		for (int i = 0; i < ROUNDS; i++) { \
-			PREFIX ## _fv_t vret, vlhs; \
+			PREFIX ## _vector_t vret, vlhs; \
 			for (int j = 0; j < num; j += CHUNK) { \
-				PREFIX ## _fv_load(&vlhs, &lhs[j]); \
-				PREFIX ## _ ## OP(&vret, &vlhs); \
-				PREFIX ## _fv_store(&ret[j], &vret); \
+				PREFIX ## _vector_load(&vlhs, &lhs[j]); \
+				PREFIX ## _vector_ ## OP(&vret, &vlhs); \
+				PREFIX ## _vector_store(&ret[j], &vret); \
 			} \
 		} \
 		now() - start; \
@@ -169,16 +169,16 @@ static void bench_exp(int rounds, int num)
 
 	bench_begin("exp");
 
-	uint64_t duration_base = BENCHMARK_OP1(cpu, CPU_CHUNK, fv_exp, rounds);
+	uint64_t duration_base = BENCHMARK_OP1(cpu, CPU_CHUNK, exp, rounds);
 	bench_verify(ret, num, 8103.083984);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP1(avx2, AVX2_CHUNK, fv_exp, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP1(avx2, AVX2_CHUNK, exp, rounds);
 	bench_verify(ret, num, 8103.083984);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP1(avx512, AVX512_CHUNK, fv_exp, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP1(avx512, AVX512_CHUNK, exp, rounds);
 	bench_verify(ret, num, 8103.083984);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -193,16 +193,16 @@ static void bench_tanh(int rounds, int num)
 
 	bench_begin("tanh");
 
-	uint64_t duration_base = BENCHMARK_OP1(cpu, CPU_CHUNK, fv_tanh, rounds);
+	uint64_t duration_base = BENCHMARK_OP1(cpu, CPU_CHUNK, tanh, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_OP1(avx2, AVX2_CHUNK, fv_tanh, rounds);
+	uint64_t duration_avx2 = BENCHMARK_OP1(avx2, AVX2_CHUNK, tanh, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_OP1(avx512, AVX512_CHUNK, fv_tanh, rounds);
+	uint64_t duration_avx512 = BENCHMARK_OP1(avx512, AVX512_CHUNK, tanh, rounds);
 	bench_verify(ret, num, 1);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -214,11 +214,11 @@ static void bench_tanh(int rounds, int num)
 	({ \
 		uint64_t start = now(); \
 		for (int i = 0; i < ROUNDS; i++) { \
-			PREFIX ## _fv_t vlhs; \
+			PREFIX ## _vector_t vlhs; \
 			(ACC) = 0; \
 			for (int j = 0; j < num; j += CHUNK) { \
-				PREFIX ## _fv_load(&vlhs, &lhs[j]); \
-				(ACC) += PREFIX ## _ ## OP(&vlhs); \
+				PREFIX ## _vector_load(&vlhs, &lhs[j]); \
+				(ACC) += PREFIX ## _vector_reduce_ ## OP(&vlhs); \
 			} \
 		} \
 		now() - start; \
@@ -231,16 +231,16 @@ static void bench_sum(int rounds, int num)
 
 	bench_begin("sum");
 
-	uint64_t duration_base = BENCHMARK_REDUCE(cpu, CPU_CHUNK, fv_reduce_sum, rounds, acc);
+	uint64_t duration_base = BENCHMARK_REDUCE(cpu, CPU_CHUNK, sum, rounds, acc);
 	bench_verify_single(acc, num);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_REDUCE(avx2, AVX2_CHUNK, fv_reduce_sum, rounds, acc);
+	uint64_t duration_avx2 = BENCHMARK_REDUCE(avx2, AVX2_CHUNK, sum, rounds, acc);
 	bench_verify_single(acc, num);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_REDUCE(avx512, AVX512_CHUNK, fv_reduce_sum, rounds, acc);
+	uint64_t duration_avx512 = BENCHMARK_REDUCE(avx512, AVX512_CHUNK, sum, rounds, acc);
 	bench_verify_single(acc, num);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif
@@ -255,16 +255,16 @@ static void bench_max(int rounds, int num)
 
 	bench_begin("max");
 
-	uint64_t duration_base = BENCHMARK_REDUCE(cpu, CPU_CHUNK, fv_reduce_max, rounds, acc);
+	uint64_t duration_base = BENCHMARK_REDUCE(cpu, CPU_CHUNK, max, rounds, acc);
 	bench_verify_single(acc, num / CPU_CHUNK);
 	bench_entry("base", rounds, duration_base, 0);
 
-	uint64_t duration_avx2 = BENCHMARK_REDUCE(avx2, AVX2_CHUNK, fv_reduce_max, rounds, acc);
+	uint64_t duration_avx2 = BENCHMARK_REDUCE(avx2, AVX2_CHUNK, max, rounds, acc);
 	bench_verify_single(acc, num / AVX2_CHUNK);
 	bench_entry("avx2", rounds, duration_avx2, duration_base);
 
 #ifdef __AVX512F__
-	uint64_t duration_avx512 = BENCHMARK_REDUCE(avx512, AVX512_CHUNK, fv_reduce_max, rounds, acc);
+	uint64_t duration_avx512 = BENCHMARK_REDUCE(avx512, AVX512_CHUNK, max, rounds, acc);
 	bench_verify_single(acc, num / AVX512_CHUNK);
 	bench_entry("avx512", rounds, duration_avx512, duration_base);
 #endif

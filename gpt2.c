@@ -203,23 +203,23 @@ static void layer_norm(
 
 		scalar_t row_mean = ft_mean(&row);
 
-		fv_t s, e;
+		vector_t s, e;
 
-		fv_load1(&s, 0);
-		fv_load1(&e, row_mean);
+		vector_set(&s, 0);
+		vector_set(&e, row_mean);
 
 		size_t len = ft_len(&row);
 
-		for (size_t j = 0; j < fv_chunks(len); j += FV_CHUNK) {
-			fv_t tmp;
+		for (size_t j = 0; j < vector_chunks(len); j += VECTOR_CHUNK) {
+			vector_t tmp;
 
-			fv_load(&tmp, &row.data[j]);
-			fv_sub(&tmp, &tmp, &e);
-			fv_mul(&tmp, &tmp, &tmp);
-			fv_add(&s, &s, &tmp);
+			vector_load(&tmp, &row.data[j]);
+			vector_sub(&tmp, &tmp, &e);
+			vector_mul(&tmp, &tmp, &tmp);
+			vector_add(&s, &s, &tmp);
 		}
-		scalar_t sum = fv_reduce_sum(&s);
-		for (size_t j = fv_chunks(len); j < len; j++) {
+		scalar_t sum = vector_reduce_sum(&s);
+		for (size_t j = vector_chunks(len); j < len; j++) {
 			scalar_t tmp = row.data[j] - row_mean;
 			sum += tmp * tmp;
 		}
@@ -227,18 +227,18 @@ static void layer_norm(
 		scalar_t var = sum / len;
 		scalar_t var_sqrt = sqrtf(var + 1e-5);
 
-		fv_t vsqrt;
-		fv_load1(&vsqrt, var_sqrt);
+		vector_t vsqrt;
+		vector_set(&vsqrt, var_sqrt);
 
-		for (size_t j = 0; j < fv_chunks(len); j += FV_CHUNK) {
-			fv_t tmp;
+		for (size_t j = 0; j < vector_chunks(len); j += VECTOR_CHUNK) {
+			vector_t tmp;
 
-			fv_load(&tmp, &row.data[j]);
-			fv_sub(&tmp, &tmp, &e);
-			fv_div(&tmp, &tmp, &vsqrt);
-			fv_store(&row.data[j], &tmp);
+			vector_load(&tmp, &row.data[j]);
+			vector_sub(&tmp, &tmp, &e);
+			vector_div(&tmp, &tmp, &vsqrt);
+			vector_store(&row.data[j], &tmp);
 		}
-		for (size_t j = fv_chunks(len); j < len; j++) {
+		for (size_t j = vector_chunks(len); j < len; j++) {
 			row.data[j] = (row.data[j] - row_mean) / var_sqrt;
 		}
 
@@ -255,49 +255,49 @@ static void layer_norm(
 
 static void gelua(ft_t *t)
 {
-	assert(t->totlen % FV_CHUNK == 0);
+	assert(t->totlen % VECTOR_CHUNK == 0);
 
-	fv_t vinp;
-	fv_t va;
+	vector_t vinp;
+	vector_t va;
 
-	fv_t k1;
-	fv_load1(&k1, GELU_K1);
+	vector_t k1;
+	vector_set(&k1, GELU_K1);
 
-	fv_t k2;
-	fv_load1(&k2, GELU_K2);
+	vector_t k2;
+	vector_set(&k2, GELU_K2);
 
-	fv_t one;
-	fv_load1(&one, 1.0);
+	vector_t one;
+	vector_set(&one, 1.0);
 
-	fv_t half;
-	fv_load1(&half, 0.5);
+	vector_t half;
+	vector_set(&half, 0.5);
 
-	for (size_t i = 0; i < fv_chunks(t->totlen); i += FV_CHUNK) {
-		fv_load(&vinp, &t->data[i]);
+	for (size_t i = 0; i < vector_chunks(t->totlen); i += VECTOR_CHUNK) {
+		vector_load(&vinp, &t->data[i]);
 
 		/* 1.0 + GELU_K2 * inp * inp */
-		fv_mul(&va, &vinp, &vinp);
-		fv_mul(&va, &va, &k2);
-		fv_add(&va, &va, &one);
+		vector_mul(&va, &vinp, &vinp);
+		vector_mul(&va, &va, &k2);
+		vector_add(&va, &va, &one);
 
 		/* tanh() */
-		fv_mul(&va, &va, &vinp);
-		fv_mul(&va, &va, &k1);
-		fv_tanh(&va, &va);
+		vector_mul(&va, &va, &vinp);
+		vector_mul(&va, &va, &k1);
+		vector_tanh(&va, &va);
 
 		/* 1.0 + tanh() */
-		fv_add(&va, &va, &one);
+		vector_add(&va, &va, &one);
 
 		/* 0.5 * (1.0 + tanh()) */
-		fv_mul(&va, &va, &half);
+		vector_mul(&va, &va, &half);
 
 		/* inp * 0.5 * (1.0 * tanh()) */
-		fv_mul(&va, &va, &vinp);
+		vector_mul(&va, &va, &vinp);
 
-		fv_store(&t->data[i], &va);
+		vector_store(&t->data[i], &va);
 	}
 
-	for (size_t i = fv_chunks(t->totlen); i < t->totlen; i++) {
+	for (size_t i = vector_chunks(t->totlen); i < t->totlen; i++) {
 		scalar_t inp;
 
 		inp = t->data[i];
@@ -308,7 +308,7 @@ static void gelua(ft_t *t)
 static void softmax_1d(ft_t *t)
 {
 	size_t len = ft_len(t);
-	fv_t vsum, vmax;
+	vector_t vsum, vmax;
 	scalar_t max;
 
 	assert(t->ndim == 1);
@@ -317,33 +317,33 @@ static void softmax_1d(ft_t *t)
 
 	max = ft_max(t, NULL);
 
-	fv_load1(&vsum, 0);
-	fv_load1(&vmax, max);
+	vector_set(&vsum, 0);
+	vector_set(&vmax, max);
 
-	for (size_t i = 0; i < fv_chunks(len); i += FV_CHUNK) {
-		fv_t vtmp;
+	for (size_t i = 0; i < vector_chunks(len); i += VECTOR_CHUNK) {
+		vector_t vtmp;
 
-		fv_load(&vtmp, &t->data[i]);
-		fv_sub(&vtmp, &vtmp, &vmax);
-		fv_exp(&vtmp, &vtmp);
-		fv_store(&t->data[i], &vtmp);
-		fv_add(&vsum, &vsum, &vtmp);
+		vector_load(&vtmp, &t->data[i]);
+		vector_sub(&vtmp, &vtmp, &vmax);
+		vector_exp(&vtmp, &vtmp);
+		vector_store(&t->data[i], &vtmp);
+		vector_add(&vsum, &vsum, &vtmp);
 	}
-	scalar_t sum = fv_reduce_sum(&vsum);
-	for (size_t i = fv_chunks(len); i < len; i++) {
+	scalar_t sum = vector_reduce_sum(&vsum);
+	for (size_t i = vector_chunks(len); i < len; i++) {
 		t->data[i] = expf(t->data[i] - max);
 		sum += t->data[i];
 	}
 
-	fv_load1(&vsum, sum);
-	for (size_t i = 0; i < fv_chunks(len); i += FV_CHUNK) {
-		fv_t tmp;
+	vector_set(&vsum, sum);
+	for (size_t i = 0; i < vector_chunks(len); i += VECTOR_CHUNK) {
+		vector_t tmp;
 
-		fv_load(&tmp, &t->data[i]);
-		fv_div(&tmp, &tmp, &vsum);
-		fv_store(&t->data[i], &tmp);
+		vector_load(&tmp, &t->data[i]);
+		vector_div(&tmp, &tmp, &vsum);
+		vector_store(&t->data[i], &tmp);
 	}
-	for (size_t i = fv_chunks(len); i < len; i++) {
+	for (size_t i = vector_chunks(len); i < len; i++) {
 		t->data[i] = t->data[i] / sum;
 	}
 }

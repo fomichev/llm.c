@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-/* TODO: fv_t -> vector_t */
 /* TODO: ft_t -> tensor_t */
 typedef float scalar_t;
 
@@ -11,140 +10,140 @@ typedef float scalar_t;
 #include "simd_avx512.h"
 
 #if defined(__AVX512F__)
-typedef avx512_fv_t fv_t;
-#define FV_CHUNK            AVX512_CHUNK
+typedef avx512_vector_t vector_t;
+#define VECTOR_CHUNK AVX512_CHUNK
 #elif defined(__AVX2__)
-typedef avx2_fv_t fv_t;
-#define FV_CHUNK            AVX2_CHUNK
+typedef avx2_vector_t vector_t;
+#define VECTOR_CHUNK AVX2_CHUNK
 #else
-typedef cpu_fv_t fv_t;
-#define FV_CHUNK            CPU_CHUNK
+typedef cpu_vector_t vector_t;
+#define VECTOR_CHUNK CPU_CHUNK
 #endif
 
-#define FV_ALIGN	(sizeof(scalar_t) * FV_CHUNK)
+#define VECTOR_ALIGN (sizeof(scalar_t) * VECTOR_CHUNK)
 
-static inline size_t fv_chunks(size_t size)
+static inline size_t vector_chunks(size_t size)
 {
-    return (size & ~(FV_ALIGN-1));
+    return (size & ~(VECTOR_ALIGN-1));
 }
 
-static inline void fv_load(fv_t *dst, scalar_t *src)
+static inline void vector_load(vector_t *dst, scalar_t *src)
 {
 #if defined(__AVX512F__)
-    avx512_fv_load(dst, src);
+    avx512_vector_load(dst, src);
 #elif defined(__AVX2__)
-    avx2_fv_load(dst, src);
+    avx2_vector_load(dst, src);
 #else
-    cpu_fv_load(dst, src);
-#endif
-}
-
-static inline void fv_load1(fv_t *dst, scalar_t val)
-{
-#if defined(__AVX512F__)
-    avx512_fv_load1(dst, val);
-#elif defined(__AVX2__)
-    avx2_fv_load1(dst, val);
-#else
-    cpu_fv_load1(dst, val);
+    cpu_vector_load(dst, src);
 #endif
 }
 
-static inline void fv_store(scalar_t *dst, fv_t *src)
+static inline void vector_set(vector_t *dst, scalar_t val)
 {
 #if defined(__AVX512F__)
-    avx512_fv_store(dst, src);
+    avx512_vector_load1(dst, val);
 #elif defined(__AVX2__)
-    avx2_fv_store(dst, src);
+    avx2_vector_load1(dst, val);
 #else
-    cpu_fv_store(dst, src);
+    cpu_vector_load1(dst, val);
 #endif
 }
 
-static inline void fv_add(fv_t *dst, fv_t *lhs, fv_t *rhs)
+static inline void vector_store(scalar_t *dst, vector_t *src)
 {
 #if defined(__AVX512F__)
-    avx512_fv_add(dst, lhs, rhs);
+    avx512_vector_store(dst, src);
 #elif defined(__AVX2__)
-    avx2_fv_add(dst, lhs, rhs);
+    avx2_vector_store(dst, src);
 #else
-    cpu_fv_add(dst, lhs, rhs);
+    cpu_vector_store(dst, src);
 #endif
 }
 
-static inline void fv_sub(fv_t *dst, fv_t *lhs, fv_t *rhs)
+static inline void vector_add(vector_t *dst, vector_t *lhs, vector_t *rhs)
 {
 #if defined(__AVX512F__)
-    avx512_fv_sub(dst, lhs, rhs);
+    avx512_vector_add(dst, lhs, rhs);
 #elif defined(__AVX2__)
-    avx2_fv_sub(dst, lhs, rhs);
+    avx2_vector_add(dst, lhs, rhs);
 #else
-    cpu_fv_sub(dst, lhs, rhs);
+    cpu_vector_add(dst, lhs, rhs);
 #endif
 }
 
-static inline void fv_mul(fv_t *dst, fv_t *lhs, fv_t *rhs)
+static inline void vector_sub(vector_t *dst, vector_t *lhs, vector_t *rhs)
 {
 #if defined(__AVX512F__)
-    avx512_fv_mul(dst, lhs, rhs);
+    avx512_vector_sub(dst, lhs, rhs);
 #elif defined(__AVX2__)
-    avx2_fv_mul(dst, lhs, rhs);
+    avx2_vector_sub(dst, lhs, rhs);
 #else
-    cpu_fv_mul(dst, lhs, rhs);
+    cpu_vector_sub(dst, lhs, rhs);
 #endif
 }
 
-static inline void fv_div(fv_t *dst, fv_t *lhs, fv_t *rhs)
+static inline void vector_mul(vector_t *dst, vector_t *lhs, vector_t *rhs)
 {
 #if defined(__AVX512F__)
-    avx512_fv_div(dst, lhs, rhs);
+    avx512_vector_mul(dst, lhs, rhs);
 #elif defined(__AVX2__)
-    avx2_fv_div(dst, lhs, rhs);
+    avx2_vector_mul(dst, lhs, rhs);
 #else
-    cpu_fv_div(dst, lhs, rhs);
+    cpu_vector_mul(dst, lhs, rhs);
 #endif
 }
 
-static inline void fv_exp(fv_t *dst, fv_t *lhs)
+static inline void vector_div(vector_t *dst, vector_t *lhs, vector_t *rhs)
 {
 #if defined(__AVX512F__)
-    avx512_fv_exp(dst, lhs);
+    avx512_vector_div(dst, lhs, rhs);
 #elif defined(__AVX2__)
-    avx2_fv_exp(dst, lhs);
+    avx2_vector_div(dst, lhs, rhs);
 #else
-    cpu_fv_exp(dst, lhs);
+    cpu_vector_div(dst, lhs, rhs);
 #endif
 }
 
-static inline void fv_tanh(fv_t *dst, fv_t *lhs)
+static inline void vector_exp(vector_t *dst, vector_t *lhs)
 {
 #if defined(__AVX512F__)
-    avx512_fv_tanh(dst, lhs);
+    avx512_vector_exp(dst, lhs);
 #elif defined(__AVX2__)
-    avx2_fv_tanh(dst, lhs);
+    avx2_vector_exp(dst, lhs);
 #else
-    cpu_fv_tanh(dst, lhs);
+    cpu_vector_exp(dst, lhs);
 #endif
 }
 
-static inline scalar_t fv_reduce_sum(fv_t *lhs)
+static inline void vector_tanh(vector_t *dst, vector_t *lhs)
 {
 #if defined(__AVX512F__)
-    return avx512_fv_reduce_sum(lhs);
+    avx512_vector_tanh(dst, lhs);
 #elif defined(__AVX2__)
-    return avx2_fv_reduce_sum(lhs);
+    avx2_vector_tanh(dst, lhs);
 #else
-    return cpu_fv_reduce_sum(lhs);
+    cpu_vector_tanh(dst, lhs);
 #endif
 }
 
-static inline scalar_t fv_reduce_max(fv_t *lhs)
+static inline scalar_t vector_reduce_sum(vector_t *lhs)
 {
 #if defined(__AVX512F__)
-    return avx512_fv_reduce_max(lhs);
+    return avx512_vector_reduce_sum(lhs);
 #elif defined(__AVX2__)
-    return avx2_fv_reduce_max(lhs);
+    return avx2_vector_reduce_sum(lhs);
 #else
-    return cpu_fv_reduce_max(lhs);
+    return cpu_vector_reduce_sum(lhs);
+#endif
+}
+
+static inline scalar_t vector_reduce_max(vector_t *lhs)
+{
+#if defined(__AVX512F__)
+    return avx512_vector_reduce_max(lhs);
+#elif defined(__AVX2__)
+    return avx2_vector_reduce_max(lhs);
+#else
+    return cpu_vector_reduce_max(lhs);
 #endif
 }

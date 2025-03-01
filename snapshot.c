@@ -134,7 +134,7 @@ ft_t *file_ft(struct file *f, size_t ndim, ...)
 	va_list ap;
 	size_t dim;
 
-	assert((uintptr_t)file_at(f, f->pos) % FV_ALIGN == 0);
+	assert((uintptr_t)file_at(f, f->pos) % VECTOR_ALIGN == 0);
 	assert(ndim >= 1 && ndim <= 4);
 
 	len = file_at_len(f, f->pos);

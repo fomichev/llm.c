@@ -30,9 +30,9 @@ static void *__ft_alloc_data(size_t len)
 	void *p;
 
 	sz = len * sizeof(scalar_t);
-	sz = (sz + (FV_ALIGN - 1)) / FV_ALIGN * FV_ALIGN;
+	sz = (sz + (VECTOR_ALIGN - 1)) / VECTOR_ALIGN * VECTOR_ALIGN;
 
-	p = aligned_alloc(FV_ALIGN, sz);
+	p = aligned_alloc(VECTOR_ALIGN, sz);
 	memset(p, 0, sz);
 	return p;
 }
@@ -277,20 +277,20 @@ static void __ft_same_size(
 
 void ft_set(ft_t *ret, scalar_t val)
 {
-	fv_t v;
+	vector_t v;
 
 	if (val == 0) {
 		memset(ret->data, 0, sizeof(ret->totlen * sizeof(scalar_t)));
 		return;
 	}
 
-	fv_load1(&v, val);
+	vector_set(&v, val);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_store(&ret->data[i], &v);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_store(&ret->data[i], &v);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = val;
 	}
 }
@@ -313,18 +313,18 @@ void ft_add(
 	const ft_t *lhs,
 	const ft_t *rhs)
 {
-	fv_t r, l;
+	vector_t r, l;
 
 	__ft_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_load(&l, &lhs->data[i]);
-		fv_load(&r, &rhs->data[i]);
-		fv_add(&r, &r, &l);
-		fv_store(&ret->data[i], &r);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_load(&l, &lhs->data[i]);
+		vector_load(&r, &rhs->data[i]);
+		vector_add(&r, &r, &l);
+		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] + rhs->data[i];
 	}
 }
@@ -351,18 +351,18 @@ void ft_sub(
 	const ft_t *lhs,
 	const ft_t *rhs)
 {
-	fv_t r, l;
+	vector_t r, l;
 
 	__ft_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_load(&l, &lhs->data[i]);
-		fv_load(&r, &rhs->data[i]);
-		fv_sub(&r, &r, &l);
-		fv_store(&ret->data[i], &r);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_load(&l, &lhs->data[i]);
+		vector_load(&r, &rhs->data[i]);
+		vector_sub(&r, &r, &l);
+		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] - rhs->data[i];
 	}
 }
@@ -372,18 +372,18 @@ void ft_mul(
 	const ft_t *lhs,
 	const ft_t *rhs)
 {
-	fv_t r, l;
+	vector_t r, l;
 
 	__ft_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_load(&l, &lhs->data[i]);
-		fv_load(&r, &rhs->data[i]);
-		fv_mul(&r, &r, &l);
-		fv_store(&ret->data[i], &r);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_load(&l, &lhs->data[i]);
+		vector_load(&r, &rhs->data[i]);
+		vector_mul(&r, &r, &l);
+		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] * rhs->data[i];
 	}
 }
@@ -393,18 +393,18 @@ void ft_div(
 	const ft_t *lhs,
 	const ft_t *rhs)
 {
-	fv_t r, l;
+	vector_t r, l;
 
 	__ft_same_size(ret, lhs, rhs);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_load(&l, &lhs->data[i]);
-		fv_load(&r, &rhs->data[i]);
-		fv_div(&r, &r, &l);
-		fv_store(&ret->data[i], &r);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_load(&l, &lhs->data[i]);
+		vector_load(&r, &rhs->data[i]);
+		vector_div(&r, &r, &l);
+		vector_store(&ret->data[i], &r);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] / rhs->data[i];
 	}
 }
@@ -414,20 +414,20 @@ void ft_div_scalar(
 	const ft_t *lhs,
 	scalar_t scalar)
 {
-	fv_t vscalar;
-	fv_t vtmp;
+	vector_t vscalar;
+	vector_t vtmp;
 
 	__ft_same_size(ret, lhs, NULL);
 
-	fv_load1(&vscalar, scalar);
+	vector_set(&vscalar, scalar);
 
-	for (size_t i = 0; i < fv_chunks(ret->totlen); i += FV_CHUNK) {
-		fv_load(&vtmp, &lhs->data[i]);
-		fv_div(&vtmp, &vtmp, &vscalar);
-		fv_store(&ret->data[i], &vtmp);
+	for (size_t i = 0; i < vector_chunks(ret->totlen); i += VECTOR_CHUNK) {
+		vector_load(&vtmp, &lhs->data[i]);
+		vector_div(&vtmp, &vtmp, &vscalar);
+		vector_store(&ret->data[i], &vtmp);
 	}
 
-	for (size_t i = fv_chunks(ret->totlen); i < ret->totlen; i++) {
+	for (size_t i = vector_chunks(ret->totlen); i < ret->totlen; i++) {
 		ret->data[i] = lhs->data[i] / scalar;
 	}
 }
@@ -435,18 +435,18 @@ void ft_div_scalar(
 scalar_t ft_mean(const ft_t *lhs)
 {
 	size_t nr = 0;
-	fv_t t, s;
+	vector_t t, s;
 
-	fv_load1(&s, 0);
+	vector_set(&s, 0);
 
-	for (size_t i = 0; i < fv_chunks(lhs->totlen); i += FV_CHUNK) {
-		fv_load(&t, &lhs->data[i]);
-		fv_add(&s, &s, &t);
-		nr += FV_CHUNK;
+	for (size_t i = 0; i < vector_chunks(lhs->totlen); i += VECTOR_CHUNK) {
+		vector_load(&t, &lhs->data[i]);
+		vector_add(&s, &s, &t);
+		nr += VECTOR_CHUNK;
 	}
 
-	scalar_t sum = fv_reduce_sum(&s);
-	for (size_t i = fv_chunks(lhs->totlen); i < lhs->totlen; i++) {
+	scalar_t sum = vector_reduce_sum(&s);
+	for (size_t i = vector_chunks(lhs->totlen); i < lhs->totlen; i++) {
 		sum += lhs->data[i];
 		nr++;
 	}
@@ -459,18 +459,18 @@ scalar_t ft_max(const ft_t *lhs, size_t *pos)
 	size_t max = lhs->data[0];
 	size_t max_pos = 0;
 	size_t res;
-	fv_t t;
+	vector_t t;
 
-	for (size_t i = 0; i < fv_chunks(lhs->totlen); i += FV_CHUNK) {
-		fv_load(&t, &lhs->data[i]);
-		res = fv_reduce_max(&t);
+	for (size_t i = 0; i < vector_chunks(lhs->totlen); i += VECTOR_CHUNK) {
+		vector_load(&t, &lhs->data[i]);
+		res = vector_reduce_max(&t);
 		if (res > max) {
 			max = res;
 			max_pos = i;
 		}
 	}
 
-	for (size_t i = fv_chunks(lhs->totlen); i < lhs->totlen; i++) {
+	for (size_t i = vector_chunks(lhs->totlen); i < lhs->totlen; i++) {
 		if (lhs->data[i] > max) {
 			max = lhs->data[i];
 			max_pos = i;
@@ -479,8 +479,8 @@ scalar_t ft_max(const ft_t *lhs, size_t *pos)
 
 	if (pos) {
 		size_t tail = lhs->totlen - max_pos;
-		if (tail > FV_CHUNK)
-			tail = FV_CHUNK;
+		if (tail > VECTOR_CHUNK)
+			tail = VECTOR_CHUNK;
 
 		for (size_t i = 0; i < tail; i++) {
 			if (lhs->data[max_pos + i] == max) {

@@ -7,54 +7,54 @@
 
 typedef struct {
 	scalar_t v [CPU_CHUNK];
-} cpu_fv_t;
+} cpu_vector_t;
 
-static inline void cpu_fv_load(cpu_fv_t *dst, scalar_t *src)
+static inline void cpu_vector_load(cpu_vector_t *dst, scalar_t *src)
 {
 	__builtin_memcpy(dst, src, CPU_CHUNK * sizeof(scalar_t));
 }
 
-static inline void cpu_fv_load1(cpu_fv_t *dst, scalar_t val)
+static inline void cpu_vector_load1(cpu_vector_t *dst, scalar_t val)
 {
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
 		dst->v[i] = val;
 	}
 }
 
-static inline void cpu_fv_store(scalar_t *dst, cpu_fv_t *src)
+static inline void cpu_vector_store(scalar_t *dst, cpu_vector_t *src)
 {
 	__builtin_memcpy(dst, src, CPU_CHUNK * sizeof(scalar_t));
 }
 
-static inline void cpu_fv_add(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+static inline void cpu_vector_add(cpu_vector_t *dst, cpu_vector_t *lhs, cpu_vector_t *rhs)
 {
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
 		dst->v[i] = lhs->v[i] + rhs->v[i];
 	}
 }
 
-static inline void cpu_fv_sub(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+static inline void cpu_vector_sub(cpu_vector_t *dst, cpu_vector_t *lhs, cpu_vector_t *rhs)
 {
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
 		dst->v[i] = lhs->v[i] - rhs->v[i];
 	}
 }
 
-static inline void cpu_fv_mul(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+static inline void cpu_vector_mul(cpu_vector_t *dst, cpu_vector_t *lhs, cpu_vector_t *rhs)
 {
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
 		dst->v[i] = lhs->v[i] * rhs->v[i];
 	}
 }
 
-static inline void cpu_fv_div(cpu_fv_t *dst, cpu_fv_t *lhs, cpu_fv_t *rhs)
+static inline void cpu_vector_div(cpu_vector_t *dst, cpu_vector_t *lhs, cpu_vector_t *rhs)
 {
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
 		dst->v[i] = lhs->v[i] / rhs->v[i];
 	}
 }
 
-static inline void cpu_fv_exp(cpu_fv_t *dst, cpu_fv_t *lhs)
+static inline void cpu_vector_exp(cpu_vector_t *dst, cpu_vector_t *lhs)
 {
 #pragma unroll
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
@@ -62,7 +62,7 @@ static inline void cpu_fv_exp(cpu_fv_t *dst, cpu_fv_t *lhs)
 	}
 }
 
-static inline void cpu_fv_tanh(cpu_fv_t *dst, cpu_fv_t *lhs)
+static inline void cpu_vector_tanh(cpu_vector_t *dst, cpu_vector_t *lhs)
 {
 #pragma unroll
 	for (size_t i = 0; i < CPU_CHUNK; i++) {
@@ -70,7 +70,7 @@ static inline void cpu_fv_tanh(cpu_fv_t *dst, cpu_fv_t *lhs)
 	}
 }
 
-static inline scalar_t cpu_fv_reduce_sum(cpu_fv_t *lhs)
+static inline scalar_t cpu_vector_reduce_sum(cpu_vector_t *lhs)
 {
 	scalar_t sum = 0;
 #pragma unroll
@@ -80,7 +80,7 @@ static inline scalar_t cpu_fv_reduce_sum(cpu_fv_t *lhs)
 	return sum;
 }
 
-static inline scalar_t cpu_fv_reduce_max(cpu_fv_t *lhs)
+static inline scalar_t cpu_vector_reduce_max(cpu_vector_t *lhs)
 {
 	scalar_t ret = lhs->v[0];
 #pragma unroll

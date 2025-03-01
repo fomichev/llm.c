@@ -191,14 +191,14 @@ static void test_ft_max(void)
 	size_t n;
 	ft_t *t;
 
-	n = FV_CHUNK * 2;
+	n = VECTOR_CHUNK * 2;
 	t = ft_new_zero(1, n);
 	t->data[n - 1] = 1;
 
 	assert(ft_max(t, &pos) == t->data[n - 1]);
 	assert(pos == n - 1);
 
-	n = FV_CHUNK * 2 - 1;
+	n = VECTOR_CHUNK * 2 - 1;
 	t = ft_new_zero(1, n);
 	t->data[n - 1] = 1;
 
