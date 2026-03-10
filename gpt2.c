@@ -777,7 +777,7 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	tensor_reshape_2d(&last_row, 1, E);
 	tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 	tensor_reshape_1d(logits, model->vocab_len);
-	softmax_1d(logits);
+	/* pass raw logits; the sampling callback handles its own softmax */
 	tok = f(ctx, logits);
 
 	uint64_t begin = profiler_now();
@@ -792,7 +792,7 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 		tensor_reshape_2d(&last_row, 1, E);
 		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 		tensor_reshape_1d(logits, model->vocab_len);
-		softmax_1d(logits);
+		/* pass raw logits; the sampling callback handles its own softmax */
 		tok = f(ctx, logits);
 
 		if (pos && pos % 100 == 0) {
