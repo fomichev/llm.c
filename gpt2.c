@@ -488,7 +488,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	}
 }
 
-static void __gpt2_eval(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output)
+static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output)
 {
 	size_t E = model->embeddings;
 	size_t C = model->context;
@@ -585,7 +585,7 @@ static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 {
 	assert(model->cache.use);
 
-	__gpt2_eval(model, &tok, &pos, 1, output);
+	gpt2_eval_inner(model, &tok, &pos, 1, output);
 	model->cache.size++;
 }
 
@@ -622,7 +622,7 @@ void gpt2_test_no_cache(struct gpt2 *model)
 
 	profiler_start();
 	while (num--) {
-		__gpt2_eval(model, tok, pos, T, output);
+		gpt2_eval_inner(model, tok, pos, T, output);
 
 		tensor_t last_row;
 		tensor_at(output, T - 1, &last_row);
@@ -813,6 +813,13 @@ void gpt2_close(struct gpt2 *model)
 	tensor_free(model->state.mlp_fc);
 	tensor_free(model->state.logits);
 
+	for (size_t i = 0; i < model->layers; i++) {
+		tensor_free(model->cache.hl[i].k);
+		tensor_free(model->cache.hl[i].v);
+	}
+
 	file_close(snapshot_param(model->ss));
 	file_close(snapshot_vocab(model->ss));
+
+	free(model);
 }

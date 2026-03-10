@@ -151,10 +151,10 @@ do { \
 	assert((dst)->ndim == 2); \
 	assert((dst)->dim[1] == (src)->totlen); \
 	assert((dst_idx) < (dst)->dim[0]); \
-	__tensor_set_inner((dst), (dst_idx), (src)); \
+	tensor_set_inner_raw((dst), (dst_idx), (src)); \
 } while (0)
 
-void __tensor_set_inner(tensor_t *dst, size_t dst_idx, const tensor_t *src);
+void tensor_set_inner_raw(tensor_t *dst, size_t dst_idx, const tensor_t *src);
 void tensor_copy(tensor_t *dst, const tensor_t *src);
 void tensor_add(
 	tensor_t *ret,

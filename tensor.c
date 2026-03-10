@@ -9,7 +9,7 @@
 
 #include "tensor.h"
 
-static tensor_t *__tensor_new(void *data, size_t ndim)
+static tensor_t *tensor_new_raw(void *data, size_t ndim)
 {
 	uint32_t ndim_sz = ndim;
 	tensor_t *t;
@@ -24,7 +24,7 @@ static tensor_t *__tensor_new(void *data, size_t ndim)
 	return t;
 }
 
-static void *__tensor_alloc_data(size_t len)
+static void *tensor_alloc_data(size_t len)
 {
 	size_t sz;
 	void *p;
@@ -43,7 +43,7 @@ tensor_t *tensor_new_zero(size_t ndim, ...)
 	size_t len = 1;
 	va_list ap;
 
-	t = __tensor_new(NULL, ndim);
+	t = tensor_new_raw(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
@@ -51,7 +51,7 @@ tensor_t *tensor_new_zero(size_t ndim, ...)
 	}
 	va_end(ap);
 
-	t->data = __tensor_alloc_data(len);
+	t->data = tensor_alloc_data(len);
 	assert(t->data);
 	t->totlen = len;
 	t->maxcap = len;
@@ -65,14 +65,14 @@ tensor_t *tensor_new(size_t ndim, ...)
 	size_t len = 1;
 	va_list ap;
 
-	t = __tensor_new(NULL, ndim);
+	t = tensor_new_raw(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
 		len *= t->dim[i];
 	}
 
-	t->data = __tensor_alloc_data(len);
+	t->data = tensor_alloc_data(len);
 	assert(t->data);
 	t->totlen = len;
 	t->maxcap = len;
@@ -85,9 +85,9 @@ tensor_t *tensor_new(size_t ndim, ...)
 	return t;
 }
 
-static tensor_t *__tensor_new_xd(tensor_t *t, va_list ap)
+static tensor_t *tensor_new_xd(tensor_t *t, va_list ap)
 {
-	t->data = __tensor_alloc_data(t->totlen);
+	t->data = tensor_alloc_data(t->totlen);
 	assert(t->data);
 
 	for (size_t i = 0; i < t->totlen; i++) {
@@ -102,12 +102,12 @@ tensor_t *tensor_new_1d(size_t d1, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = __tensor_new(NULL, 1);
+	t = tensor_new_raw(NULL, 1);
 	t->dim[0] = d1;
 	t->totlen = d1;
 
 	va_start(ap, d1);
-	__tensor_new_xd(t, ap);
+	tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
@@ -118,13 +118,13 @@ tensor_t *tensor_new_2d(size_t d1, size_t d2, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = __tensor_new(NULL, 2);
+	t = tensor_new_raw(NULL, 2);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->totlen = d1 * d2;
 
 	va_start(ap, d2);
-	__tensor_new_xd(t, ap);
+	tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
@@ -135,14 +135,14 @@ tensor_t *tensor_new_3d(size_t d1, size_t d2, size_t d3, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = __tensor_new(NULL, 3);
+	t = tensor_new_raw(NULL, 3);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->dim[2] = d3;
 	t->totlen = d1 * d2 * d3;
 
 	va_start(ap, d3);
-	__tensor_new_xd(t, ap);
+	tensor_new_xd(t, ap);
 	va_end(ap);
 
 	return t;
@@ -158,7 +158,7 @@ tensor_t *tensor_new_mapped(void *data, size_t totlen)
 {
 	tensor_t *t;
 
-	t = __tensor_new(data, 0);
+	t = tensor_new_raw(data, 0);
 	t->totlen = totlen;
 	t->maxcap = totlen;
 
@@ -170,7 +170,7 @@ void tensor_free_mapped(const tensor_t *t)
 	free((void *)t);
 }
 
-static void __tensor_to_string(FILE *f, const tensor_t *t, int show_only)
+static void tensor_to_string_inner(FILE *f, const tensor_t *t, int show_only)
 {
 	if (t->ndim == 1) {
 		fprintf(f, "[");
@@ -206,7 +206,7 @@ static void __tensor_to_string(FILE *f, const tensor_t *t, int show_only)
 		}
 
 		tensor_at(t, i, &view);
-		__tensor_to_string(f, &view, show_only);
+		tensor_to_string_inner(f, &view, show_only);
 
 		if (show_only && i + 1 != tensor_len(t) && i + 1 != show_only)
 			fprintf(f, "\n ");
@@ -221,7 +221,7 @@ char *tensor_to_string(const tensor_t *t)
 	size_t size;
 
 	f = open_memstream(&ptr, &size);
-	__tensor_to_string(f, t, 0);
+	tensor_to_string_inner(f, t, 0);
 	fclose(f);
 
 	return ptr;
@@ -234,7 +234,7 @@ char *tensor_to_short_string(const tensor_t *t)
 	size_t size;
 
 	f = open_memstream(&ptr, &size);
-	__tensor_to_string(f, t, 2);
+	tensor_to_string_inner(f, t, 2);
 	fclose(f);
 
 	return ptr;
@@ -265,7 +265,7 @@ void tensor_pick_rows(tensor_t *dst, const tensor_t *src, const int *rows, size_
 	dst->totlen = dst->dim[0] * dst->dim[1];
 }
 
-static void __tensor_same_size(
+static void tensor_check_same_size(
 	tensor_t *ret,
 	const tensor_t *lhs,
 	const tensor_t *rhs)
@@ -295,7 +295,7 @@ void tensor_set(tensor_t *ret, scalar_t val)
 	}
 }
 
-void __tensor_set_inner(tensor_t *dst, size_t dst_idx, const tensor_t *src)
+void tensor_set_inner_raw(tensor_t *dst, size_t dst_idx, const tensor_t *src)
 {
 	memcpy(&dst->data[dst_idx * dst->dim[1]], src->data, src->totlen * sizeof(scalar_t));
 }
@@ -315,7 +315,7 @@ void tensor_add(
 {
 	vector_t r, l;
 
-	__tensor_same_size(ret, lhs, rhs);
+	tensor_check_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
@@ -353,7 +353,7 @@ void tensor_sub(
 {
 	vector_t r, l;
 
-	__tensor_same_size(ret, lhs, rhs);
+	tensor_check_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
@@ -374,7 +374,7 @@ void tensor_mul(
 {
 	vector_t r, l;
 
-	__tensor_same_size(ret, lhs, rhs);
+	tensor_check_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
@@ -395,7 +395,7 @@ void tensor_div(
 {
 	vector_t r, l;
 
-	__tensor_same_size(ret, lhs, rhs);
+	tensor_check_same_size(ret, lhs, rhs);
 
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
@@ -417,7 +417,7 @@ void tensor_div_scalar(
 	vector_t vscalar;
 	vector_t vtmp;
 
-	__tensor_same_size(ret, lhs, NULL);
+	tensor_check_same_size(ret, lhs, NULL);
 
 	vector_set(&vscalar, scalar);
 

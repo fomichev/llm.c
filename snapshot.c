@@ -68,11 +68,14 @@ static void *mmap_file(const char *path, size_t *len)
 		return NULL;
 
 	p = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	close(fd);
+
+	if (p == MAP_FAILED)
+		return NULL;
+
 	*len = st.st_size;
 
 	file_maybe_mlock(path, p, *len);
-
-	close(fd);
 
 	return p;
 }

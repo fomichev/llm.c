@@ -41,7 +41,6 @@ all:
 
 build:
 	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c snapshot.c vocab.c tensor.c $(LIBS) -o llmc
-	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c snapshot.c vocab.c tensor.c $(LIBS) -o llmc
 
 check:
 	$(MAKE) build
