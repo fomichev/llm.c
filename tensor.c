@@ -280,7 +280,7 @@ void tensor_set(tensor_t *ret, scalar_t val)
 	vector_t v;
 
 	if (val == 0) {
-		memset(ret->data, 0, sizeof(ret->totlen * sizeof(scalar_t)));
+		memset(ret->data, 0, ret->totlen * sizeof(scalar_t));
 		return;
 	}
 
@@ -358,7 +358,7 @@ void tensor_sub(
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
-		vector_sub(&r, &r, &l);
+		vector_sub(&r, &l, &r);
 		vector_store(&ret->data[i], &r);
 	}
 
@@ -400,7 +400,7 @@ void tensor_div(
 	for (size_t i = 0; i < vector_batches(ret->totlen); i += VECTOR_BATCH) {
 		vector_load(&l, &lhs->data[i]);
 		vector_load(&r, &rhs->data[i]);
-		vector_div(&r, &r, &l);
+		vector_div(&r, &l, &r);
 		vector_store(&ret->data[i], &r);
 	}
 

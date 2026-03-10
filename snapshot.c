@@ -243,16 +243,24 @@ int snapshot_config_int(struct snapshot *ss, const char *k)
 
 struct file *snapshot_param(struct snapshot *ss)
 {
-	if (!ss->file_param)
-		ss->file_param = file_load(snapshot_config_str(ss, "param_meta"),
-					   snapshot_config_str(ss, "param_data"));
+	if (!ss->file_param) {
+		char *meta = snapshot_config_str(ss, "param_meta");
+		char *data = snapshot_config_str(ss, "param_data");
+		ss->file_param = file_load(meta, data);
+		free(meta);
+		free(data);
+	}
 	return ss->file_param;
 }
 
 struct file *snapshot_vocab(struct snapshot *ss)
 {
-	if (!ss->file_vocab)
-		ss->file_vocab = file_load(snapshot_config_str(ss, "vocab_meta"),
-					   snapshot_config_str(ss, "vocab_data"));
+	if (!ss->file_vocab) {
+		char *meta = snapshot_config_str(ss, "vocab_meta");
+		char *data = snapshot_config_str(ss, "vocab_data");
+		ss->file_vocab = file_load(meta, data);
+		free(meta);
+		free(data);
+	}
 	return ss->file_vocab;
 }

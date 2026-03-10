@@ -170,12 +170,11 @@ int main(int argc, char *argv[])
 
 	signal(SIGABRT, bt);
 
-	if (argc < 1) {
+	if (argc < 2) {
 		fprintf(stderr, "Usage: %s <path.llmc>\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
-	assert(argc > 1);
 	printf("loading model from %s\n", argv[1]);
 	ss = snapshot_load(argv[1]);
 	if (!ss) {
@@ -210,8 +209,8 @@ int main(int argc, char *argv[])
 		}
 
 		char *inp = malloc(sz + 1 /* \0 */);
-		inp[0] = '\0';
 		assert(inp);
+		inp[0] = '\0';
 
 		for (int i = 2; i < argc; i++) {
 			if (i != 2)

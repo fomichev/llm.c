@@ -70,7 +70,7 @@ static inline void tensor_reshape_4d(tensor_t *t, size_t d1, size_t d2, size_t d
 {
 	assert(d1 * d2 * d3 * d4 <= t->maxcap);
 
-	t->ndim = 2;
+	t->ndim = 4;
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->dim[2] = d3;
@@ -116,7 +116,7 @@ do { \
 	(view)->ndim = (t)->ndim - 1; \
 	(view)->dim[0] = (t)->dim[1]; \
 	(view)->dim[1] = (t)->dim[2]; \
-	(view)->dim[3] = (t)->dim[3]; \
+	(view)->dim[2] = (t)->dim[3]; \
 } while (0)
 
 static inline void tensor_assert_1d(const tensor_t *t, size_t d1)
