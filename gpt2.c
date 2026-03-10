@@ -427,7 +427,6 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 				if (model->cache.use) {
 					tensor_t ck;
-					assert(t_idx < C); /* TODO: handle overflow */
 					tensor_at(model->cache.hl[l].k, t_idx, &ck);
 					tensor_reshape_2d(&ck, H, HLEN);
 					tensor_set_inner(&ck, h_idx, &k);
@@ -449,7 +448,6 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 				if (model->cache.use) {
 					tensor_t cv;
-					assert(t_idx < C); /* TODO: handle overflow */
 					tensor_at(model->cache.hl[l].v, t_idx, &cv);
 					tensor_reshape_2d(&cv, H, HLEN);
 					tensor_set_inner(&cv, h_idx, &v);
@@ -587,9 +585,35 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 	profiler_record(11, "ln2 residual");
 }
 
+static void gpt2_cache_rotate(struct gpt2 *model)
+{
+	size_t C = model->context;
+	size_t E = model->embeddings;
+	size_t half = C / 2;
+
+	for (size_t i = 0; i < model->layers; i++) {
+		scalar_t *kd = model->cache.hl[i].k->data;
+		scalar_t *vd = model->cache.hl[i].v->data;
+
+		memmove(kd, kd + half * E, (C - half) * E * sizeof(scalar_t));
+		memmove(vd, vd + half * E, (C - half) * E * sizeof(scalar_t));
+	}
+
+	model->cache.size -= half;
+}
+
 static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 {
 	assert(model->cache.use);
+
+	if (model->cache.size >= model->context)
+		gpt2_cache_rotate(model);
+
+	/* After rotation pos may exceed the context window; clamp it to
+	 * the current cache position so the position embedding stays in
+	 * bounds. */
+	if (pos >= (int)model->context)
+		pos = model->cache.size;
 
 	gpt2_eval_inner(model, &tok, &pos, 1, output);
 	model->cache.size++;

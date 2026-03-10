@@ -12,7 +12,6 @@ Transformer implementation is not super optimal:
 
 * Instead of head-qkv permutation (in python case), I'm doing a copy to the per-head buffer.
 * No threading (besides Intel MKL for matmul), all transformer heads run in sequence.
-* KV cache is not rotated, the program crashes upon reaching 1024 tokens.
 
 OTOH, KV-cache is implemented which seems to bring performance close to
 the PyTorch Hugging Face implementation.
