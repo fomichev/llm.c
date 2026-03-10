@@ -3,12 +3,8 @@
 #include "tensor.h"
 
 #include <stddef.h>
-#include <stdbool.h>
 
-struct kvcache_params {
-	bool read;
-	bool write;
-};
+enum kv_mode { KV_PREFILL, KV_DECODE };
 
 struct kvcache {
 	struct {
