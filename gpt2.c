@@ -47,7 +47,7 @@ struct gpt2 {
 			const tensor_t *c_proj_weight;
 			const tensor_t *c_proj_bias;
 		} mlp;
-	} hl[48]; /* to fit gpt2-xl */
+	} *hl;
 	const tensor_t *ln_f_weight;
 	const tensor_t *ln_f_bias;
 
@@ -70,7 +70,7 @@ struct gpt2 {
 		struct {
 			tensor_t *k;
 			tensor_t *v;
-		} hl[48];
+		} *hl;
 		size_t size;
 		bool use;
 	} cache;
@@ -105,6 +105,9 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	model->hlen_sq = sqrt((scalar_t)HLEN);
 
 	assert(H * HLEN == E);
+
+	model->hl = calloc(model->layers, sizeof(*model->hl));
+	assert(model->hl);
 
 	model->wte = file_tensor(f, 2, model->vocab_len, E);
 	model->wpe = file_tensor(f, 2, C, E);
@@ -155,6 +158,9 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	model->state.attn_residual = tensor_new_zero(2, C, E);
 	model->state.mlp_fc = tensor_new_zero(2, C, E * 4);
 	model->state.logits = tensor_new_zero(1, model->vocab_len);
+
+	model->cache.hl = calloc(model->layers, sizeof(*model->cache.hl));
+	assert(model->cache.hl);
 
 	for (size_t i = 0; i < model->layers; i++) {
 		model->cache.hl[i].k = tensor_new_zero(2, C, H * HLEN);
@@ -797,6 +803,7 @@ void gpt2_close(struct gpt2 *model)
 		tensor_free_mapped(model->hl[i].mlp.c_proj_weight);
 		tensor_free_mapped(model->hl[i].mlp.c_proj_bias);
 	}
+	free(model->hl);
 	tensor_free_mapped(model->ln_f_weight);
 	tensor_free_mapped(model->ln_f_bias);
 
@@ -817,6 +824,7 @@ void gpt2_close(struct gpt2 *model)
 		tensor_free(model->cache.hl[i].k);
 		tensor_free(model->cache.hl[i].v);
 	}
+	free(model->cache.hl);
 
 	file_close(snapshot_param(model->ss));
 	file_close(snapshot_vocab(model->ss));

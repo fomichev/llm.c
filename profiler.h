@@ -1,12 +1,20 @@
 #pragma once
 
+#include <assert.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <time.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 #define PROFILER_SIZE		16
 
-static uint64_t profiler_last;
-static uint64_t profiler_points[PROFILER_SIZE] = {};
-static const char *profiler_names[PROFILER_SIZE] = {};
+extern uint64_t profiler_last;
+extern uint64_t profiler_points[PROFILER_SIZE];
+extern const char *profiler_names[PROFILER_SIZE];
 
 static inline uint64_t profiler_now(void)
 {
