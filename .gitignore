@@ -60,3 +60,6 @@ dkms.conf
 /perf.data.old
 /out.perf-folded
 /__pycache__
+
+encoder_124M.json
+/.venv

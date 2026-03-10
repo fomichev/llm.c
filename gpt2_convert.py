@@ -29,33 +29,70 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 print(model)
 print(tokenizer)
 
-def convert_weights(state_dict):
+def write_tensor(file_meta, file_data, key, val):
+    transposed = ''
+    for i in transpose:
+        if key.endswith(i):
+            val = val.transpose(-2, -1).contiguous()
+            transposed = '.T'
+
+    pos = file_data.tell()
+    flat = val.numpy().flat
+    for x in flat:
+        file_data.write(struct.pack('f', x))
+    size = file_data.tell() - pos
+
+    size_padded = (size + tensor_padding - 1) // tensor_padding * tensor_padding
+    padding = size_padded - size
+    for x in range(padding):
+        file_data.write(struct.pack('c', bytes([0])))
+
+    file_meta.write(struct.pack('QQ', pos, size))
+
+    print(key + transposed, pos, size, val.shape, padding)
+
+def convert_weights(model):
+    state_dict = model.state_dict()
+    C = model.wpe.num_embeddings
+    num_layers = len(model.h)
+
     with open(f'{name}_param.meta', 'wb') as file_meta, open(f'{name}_param.data', 'wb') as file_data:
-        for key in state_dict:
-            val = state_dict[key]
-            if val.dtype != torch.float32 and val.dtype != torch.bool and val.dtype != torch.uint8:
-                raise Exception(f'unexpected dtype {val.dtype} for {key}')
+        write_tensor(file_meta, file_data, 'wte.weight', state_dict['wte.weight'])
+        write_tensor(file_meta, file_data, 'wpe.weight', state_dict['wpe.weight'])
 
-            transposed = ''
-            for i in transpose:
-                if key.endswith(i):
-                    val = val.transpose(-2, -1).contiguous()
-                    transposed = '.T'
+        for i in range(num_layers):
+            p = f'h.{i}.'
+            write_tensor(file_meta, file_data, p + 'ln_1.weight', state_dict[p + 'ln_1.weight'])
+            write_tensor(file_meta, file_data, p + 'ln_1.bias', state_dict[p + 'ln_1.bias'])
 
-            pos = file_data.tell()
-            flat = val.numpy().flat
-            for x in flat:
-                file_data.write(struct.pack('f', x))
-            size = file_data.tell() - pos
+            # Newer transformers removed attn.bias (causal mask) and
+            # attn.masked_bias from the state dict. Generate them if missing.
+            attn_bias_key = p + 'attn.bias'
+            if attn_bias_key in state_dict:
+                write_tensor(file_meta, file_data, attn_bias_key, state_dict[attn_bias_key])
+            else:
+                causal_mask = torch.tril(torch.ones(1, 1, C, C, dtype=torch.float32))
+                write_tensor(file_meta, file_data, attn_bias_key + ' (generated)', causal_mask)
 
-            size_padded = (size + tensor_padding - 1) // tensor_padding * tensor_padding
-            padding = size_padded - size
-            for x in range(padding):
-                file_data.write(struct.pack('c', bytes([0])))
+            masked_bias_key = p + 'attn.masked_bias'
+            if masked_bias_key in state_dict:
+                write_tensor(file_meta, file_data, masked_bias_key, state_dict[masked_bias_key])
+            else:
+                write_tensor(file_meta, file_data, masked_bias_key + ' (generated)', torch.tensor([-1e4], dtype=torch.float32))
 
-            file_meta.write(struct.pack('QQ', pos, size))
+            write_tensor(file_meta, file_data, p + 'attn.c_attn.weight', state_dict[p + 'attn.c_attn.weight'])
+            write_tensor(file_meta, file_data, p + 'attn.c_attn.bias', state_dict[p + 'attn.c_attn.bias'])
+            write_tensor(file_meta, file_data, p + 'attn.c_proj.weight', state_dict[p + 'attn.c_proj.weight'])
+            write_tensor(file_meta, file_data, p + 'attn.c_proj.bias', state_dict[p + 'attn.c_proj.bias'])
+            write_tensor(file_meta, file_data, p + 'ln_2.weight', state_dict[p + 'ln_2.weight'])
+            write_tensor(file_meta, file_data, p + 'ln_2.bias', state_dict[p + 'ln_2.bias'])
+            write_tensor(file_meta, file_data, p + 'mlp.c_fc.weight', state_dict[p + 'mlp.c_fc.weight'])
+            write_tensor(file_meta, file_data, p + 'mlp.c_fc.bias', state_dict[p + 'mlp.c_fc.bias'])
+            write_tensor(file_meta, file_data, p + 'mlp.c_proj.weight', state_dict[p + 'mlp.c_proj.weight'])
+            write_tensor(file_meta, file_data, p + 'mlp.c_proj.bias', state_dict[p + 'mlp.c_proj.bias'])
 
-            print(key + transposed, pos, size, val.shape, padding)
+        write_tensor(file_meta, file_data, 'ln_f.weight', state_dict['ln_f.weight'])
+        write_tensor(file_meta, file_data, 'ln_f.bias', state_dict['ln_f.bias'])
 
 def convert_vocab(json):
     with open(f'{name}_vocab.meta', 'wb') as file_meta, open(f'{name}_vocab.data', 'wb') as file_data:
@@ -77,7 +114,7 @@ def convert_vocab(json):
                 raise Exception(f'unexpected token index {v}, expected {i}')
             i = i + 1
 
-convert_weights(model.state_dict())
+convert_weights(model)
 with open(sys.argv[2]) as f:
     convert_vocab(json.load(f))
 

@@ -24,21 +24,21 @@ All GPT-2 flavors (124M/355M/774M/1558M) are supported and run perfectly fine.
 
 ## HOWTO
 
-Build container with all dependencies and download GPT-2 124M model:
+Download and convert the GPT-2 124M model:
 
 ```
 $ git clone git@github.com:fomichev/llm.c.git
 $ cd llm.c
-$ export BUILDAH_LAYERS=true
-$ buildah bud --build-arg M=124M --volume ${PWD}:/host:rw --tag llmc
+$ ./download_model.sh 124M
 ```
 
-Start container and it will tell a story (500 tokens) starting with
+Build and run inference (500 tokens) starting with
 the following phrase: "In the morning I was able to". top-k-5 sampling
 is used to make sure each time the story is a little bit different.
 
 ```
-$ podman run --volume ${PWD}:/host:rw localhost/llmc:latest ./llmc gpt2_124M.llmc In the morning I was able to
+$ make build
+$ ./llmc gpt2_124M.llmc In the morning I was able to
 ```
 ```
 loading model from gpt2_124M.llmc
@@ -87,5 +87,5 @@ Possible bigger GPT2-2 sizes (M= argument):
 * 1558M, 6.0G on disk, 500ms per token
 
 Note that about 3x the amount of disk space is required. The script
-downloads OpenAI TensorFlow snapshot, converts it to PyTorch and then
-coverts it to the mmap-able format that llm.c can understand.
+downloads the model from HuggingFace and converts it to the mmap-able
+format that llm.c can understand.
