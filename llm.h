@@ -10,6 +10,7 @@
 
 #include "simd.h"
 #include "tensor.h"
+#include "kvcache.h"
 
 struct file;
 

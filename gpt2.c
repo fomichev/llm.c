@@ -6,11 +6,6 @@
 #include <stdio.h>
 #include <math.h>
 
-struct kvcache {
-	bool read;
-	bool write;
-};
-
 struct gpt2 {
 	struct snapshot *ss;
 
@@ -71,13 +66,7 @@ struct gpt2 {
 		tensor_t *logits;
 	} state;
 
-	struct {
-		struct {
-			tensor_t *k;
-			tensor_t *v;
-		} *hl;
-		size_t size;
-	} cache;
+	struct kvcache *cache;
 };
 
 struct gpt2 *gpt2_load(struct snapshot *ss)
@@ -163,13 +152,8 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	model->state.mlp_fc = tensor_new_zero(2, C, E * 4);
 	model->state.logits = tensor_new_zero(1, model->vocab_len);
 
-	model->cache.hl = calloc(model->layers, sizeof(*model->cache.hl));
-	assert(model->cache.hl);
-
-	for (size_t i = 0; i < model->layers; i++) {
-		model->cache.hl[i].k = tensor_new_zero(2, C, H * HLEN);
-		model->cache.hl[i].v = tensor_new_zero(2, C, H * HLEN);
-	}
+	model->cache = kvcache_alloc(model->layers, C, E);
+	assert(model->cache);
 
 	uint64_t totmem = 0;
 	totmem += model->state.output->maxcap;
@@ -187,8 +171,8 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 
 	uint64_t cachemem = 0;
 	for (size_t i = 0; i < model->layers; i++) {
-		cachemem += model->cache.hl[i].k->maxcap;
-		cachemem += model->cache.hl[i].v->maxcap;
+		cachemem += model->cache->hl[i].k->maxcap;
+		cachemem += model->cache->hl[i].v->maxcap;
 	}
 
 	fprintf(stderr, "runtime memory: %luMB + %luMB KV cache\n",
@@ -368,7 +352,7 @@ static void softmax_2d(tensor_t *t)
 	}
 }
 
-static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l, struct kvcache *kv)
+static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l, struct kvcache_params *kv)
 {
 	tensor_t *qh = model->state.qh;
 	tensor_t *kh = model->state.kh;
@@ -384,7 +368,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 	if (kv->read) {
 		assert(T == 1);
-		AT = model->cache.size + 1;
+		AT = model->cache->size + 1;
 	}
 
 	tensor_resize(qh, T);
@@ -419,7 +403,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 			tensor_t k;
 			if (kv->read && t_idx + 1 != AT) {
-				tensor_at(model->cache.hl[l].k, t_idx, &k);
+				kvcache_get_k(model->cache, l, t_idx, &k);
 				tensor_reshape_2d(&k, H, HLEN);
 				tensor_at(&k, h_idx, &k);
 			} else {
@@ -429,7 +413,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 				if (kv->write) {
 					tensor_t ck;
-					tensor_at(model->cache.hl[l].k, t_idx, &ck);
+					kvcache_get_k(model->cache, l, t_idx, &ck);
 					tensor_reshape_2d(&ck, H, HLEN);
 					tensor_set_inner(&ck, h_idx, &k);
 				}
@@ -438,7 +422,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 			tensor_t v;
 			if (kv->read && t_idx + 1 != AT) {
-				tensor_at(model->cache.hl[l].v, t_idx, &v);
+				kvcache_get_v(model->cache, l, t_idx, &v);
 				tensor_reshape_2d(&v, H, HLEN);
 				tensor_at(&v, h_idx, &v);
 				tensor_assert_1d(&v, HLEN);
@@ -450,7 +434,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 				if (kv->write) {
 					tensor_t cv;
-					tensor_at(model->cache.hl[l].v, t_idx, &cv);
+					kvcache_get_v(model->cache, l, t_idx, &cv);
 					tensor_reshape_2d(&cv, H, HLEN);
 					tensor_set_inner(&cv, h_idx, &v);
 				}
@@ -496,7 +480,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	}
 }
 
-static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output, struct kvcache *kv)
+static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output, struct kvcache_params *kv)
 {
 	size_t E = model->embeddings;
 	size_t C = model->context;
@@ -589,36 +573,19 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 	profiler_record(11, "ln2 residual");
 }
 
-static void gpt2_cache_rotate(struct gpt2 *model)
-{
-	size_t C = model->context;
-	size_t E = model->embeddings;
-	size_t half = C / 2;
-
-	for (size_t i = 0; i < model->layers; i++) {
-		scalar_t *kd = model->cache.hl[i].k->data;
-		scalar_t *vd = model->cache.hl[i].v->data;
-
-		memmove(kd, kd + half * E, (C - half) * E * sizeof(scalar_t));
-		memmove(vd, vd + half * E, (C - half) * E * sizeof(scalar_t));
-	}
-
-	model->cache.size -= half;
-}
-
 static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 {
-	if (model->cache.size >= model->context)
-		gpt2_cache_rotate(model);
+	if (model->cache->size >= model->cache->context)
+		kvcache_rotate(model->cache);
 
 	/* After rotation pos may exceed the context window; clamp it to
 	 * the current cache position so the position embedding stays in
 	 * bounds. */
-	if (pos >= (int)model->context)
-		pos = model->cache.size;
+	if (pos >= (int)model->cache->context)
+		pos = model->cache->size;
 
-	gpt2_eval_inner(model, &tok, &pos, 1, output, &(struct kvcache){ .read = true, .write = true });
-	model->cache.size++;
+	gpt2_eval_inner(model, &tok, &pos, 1, output, &(struct kvcache_params){ .read = true, .write = true });
+	model->cache->size++;
 }
 
 void gpt2_test_no_cache(struct gpt2 *model)
@@ -646,7 +613,7 @@ void gpt2_test_no_cache(struct gpt2 *model)
 
 	profiler_start();
 	while (num--) {
-		gpt2_eval_inner(model, tok, pos, T, output, &(struct kvcache){});
+		gpt2_eval_inner(model, tok, pos, T, output, &(struct kvcache_params){});
 
 		tensor_t last_row;
 		tensor_at(output, T - 1, &last_row);
@@ -693,7 +660,7 @@ void gpt2_test_cache(struct gpt2 *model)
 	tensor_t *output = model->state.output;
 	tensor_t *logits = model->state.logits;
 
-	model->cache.size = 0;
+	model->cache->size = 0;
 
 	size_t nextch = 0;
 
@@ -767,8 +734,8 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	fflush(stdout);
 
 	/* batch prefill: run the entire prompt in one forward pass */
-	gpt2_eval_inner(model, toks, poss, T, output, &(struct kvcache){ .write = true });
-	model->cache.size = T;
+	gpt2_eval_inner(model, toks, poss, T, output, &(struct kvcache_params){ .write = true });
+	model->cache->size = T;
 
 	int pos = T;
 
@@ -850,11 +817,7 @@ void gpt2_close(struct gpt2 *model)
 	tensor_free(model->state.mlp_fc);
 	tensor_free(model->state.logits);
 
-	for (size_t i = 0; i < model->layers; i++) {
-		tensor_free(model->cache.hl[i].k);
-		tensor_free(model->cache.hl[i].v);
-	}
-	free(model->cache.hl);
+	kvcache_free(model->cache);
 
 	file_close(snapshot_param(model->ss));
 	file_close(snapshot_vocab(model->ss));
