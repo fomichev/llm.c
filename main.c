@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	printf("loading model from %s\n", argv[1]);
+	fprintf(stderr, "loading model from %s\n", argv[1]);
 	ss = snapshot_load(argv[1]);
 	if (!ss) {
 		fprintf(stderr, "failed to load model from '%s'\n", argv[1]);
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 
 	model = gpt2_load(ss);
 	if (!model) {
-		printf("failed to load model\n");
+		fprintf(stderr, "failed to load model\n");
 		return EXIT_FAILURE;
 	}
 	if (argc == 2) {

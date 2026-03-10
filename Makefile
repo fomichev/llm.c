@@ -19,8 +19,6 @@ SLEEF_CFLAGS=-I$(HOME)/src/sleef/install/include -D USE_SLEEF
 SLEEF_LDFLAGS=-L$(HOME)/src/sleef/install/lib
 LIBS+=-lsleef
 
-#export SRAND48_SEED=1337
-
 O=3
 GPT2_EVAL_ROUNDS?=10
 
@@ -46,7 +44,8 @@ check:
 	$(MAKE) build
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
-	./llmc gpt2_$(M).llmc
+	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc In the morning I was able to > test/got_$(M).txt
+	diff test/expected_$(M).txt test/got_$(M).txt
 
 flamegraph:
 	$(MAKE) build O=0 GPT2_EVAL_ROUNDS=100

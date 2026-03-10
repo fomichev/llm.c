@@ -63,3 +63,4 @@ dkms.conf
 
 encoder_124M.json
 /.venv
+/test/got_124M.txt

@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <math.h>
 
+struct kvcache {
+	bool read;
+	bool write;
+};
+
 struct gpt2 {
 	struct snapshot *ss;
 
@@ -72,7 +77,6 @@ struct gpt2 {
 			tensor_t *v;
 		} *hl;
 		size_t size;
-		bool use;
 	} cache;
 };
 
@@ -165,8 +169,6 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	for (size_t i = 0; i < model->layers; i++) {
 		model->cache.hl[i].k = tensor_new_zero(2, C, H * HLEN);
 		model->cache.hl[i].v = tensor_new_zero(2, C, H * HLEN);
-		model->cache.use = true;
-		model->cache.size = 0;
 	}
 
 	uint64_t totmem = 0;
@@ -189,9 +191,9 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 		cachemem += model->cache.hl[i].v->maxcap;
 	}
 
-	printf("runtime memory: %luMB + %luMB KV cache\n",
-	       totmem / 1024 / 1024,
-	       cachemem / 1024 / 1024);
+	fprintf(stderr, "runtime memory: %luMB + %luMB KV cache\n",
+	        totmem / 1024 / 1024,
+	        cachemem / 1024 / 1024);
 
 	return model;
 }
@@ -366,7 +368,7 @@ static void softmax_2d(tensor_t *t)
 	}
 }
 
-static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l)
+static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l, struct kvcache *kv)
 {
 	tensor_t *qh = model->state.qh;
 	tensor_t *kh = model->state.kh;
@@ -380,7 +382,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	size_t HLEN = model->head_len;
 	size_t E = model->embeddings;
 
-	if (model->cache.use) {
+	if (kv->read) {
 		assert(T == 1);
 		AT = model->cache.size + 1;
 	}
@@ -391,7 +393,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	tensor_resize_2d(masked_attn, AT, AT);
 
 	for (size_t h_idx = 0; h_idx < H; h_idx++) {
-		if (model->cache.use) {
+		if (kv->read) {
 			tensor_t tok, q;
 			tensor_at(input, 0, &tok);
 			tensor_reshape_2d(&tok, 3, E);
@@ -403,11 +405,11 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 
 		for (size_t t_idx = 0; t_idx < AT; t_idx++) {
 			tensor_t tok;
-			tensor_at(input, model->cache.use ? 0 : t_idx, &tok);
+			tensor_at(input, kv->read ? 0 : t_idx, &tok);
 			tensor_assert_1d(&tok, 3 * E);
 			tensor_reshape_2d(&tok, 3, E);
 
-			if (!model->cache.use) {
+			if (!kv->read) {
 				tensor_t q;
 				tensor_at(&tok, 0, &q);
 				tensor_reshape_2d(&q, H, HLEN);
@@ -416,7 +418,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 			}
 
 			tensor_t k;
-			if (model->cache.use && t_idx + 1 != AT) {
+			if (kv->read && t_idx + 1 != AT) {
 				tensor_at(model->cache.hl[l].k, t_idx, &k);
 				tensor_reshape_2d(&k, H, HLEN);
 				tensor_at(&k, h_idx, &k);
@@ -425,7 +427,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 				tensor_reshape_2d(&k, H, HLEN);
 				tensor_at(&k, h_idx, &k);
 
-				if (model->cache.use) {
+				if (kv->write) {
 					tensor_t ck;
 					tensor_at(model->cache.hl[l].k, t_idx, &ck);
 					tensor_reshape_2d(&ck, H, HLEN);
@@ -435,7 +437,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 			tensor_set_inner(kh, t_idx, &k);
 
 			tensor_t v;
-			if (model->cache.use && t_idx + 1 != AT) {
+			if (kv->read && t_idx + 1 != AT) {
 				tensor_at(model->cache.hl[l].v, t_idx, &v);
 				tensor_reshape_2d(&v, H, HLEN);
 				tensor_at(&v, h_idx, &v);
@@ -446,7 +448,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 				tensor_at(&v, h_idx, &v);
 				tensor_assert_1d(&v, HLEN);
 
-				if (model->cache.use) {
+				if (kv->write) {
 					tensor_t cv;
 					tensor_at(model->cache.hl[l].v, t_idx, &cv);
 					tensor_reshape_2d(&cv, H, HLEN);
@@ -463,8 +465,10 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 		tensor_assert_2d(masked_attn, T, AT);
 		tensor_div_scalar(masked_attn, masked_attn, model->hlen_sq);
 
-		if (!model->cache.use) {
-			/* attention mask */
+		if (!kv->read) {
+			/* causal mask: when processing multiple tokens at once,
+			 * prevent each position from attending to future tokens.
+			 * Not needed with kv->read since T==1 (single query row). */
 			for (size_t i = 0; i < AT; i++)
 				for (size_t j = 0; j < AT; j++)
 					if (j > i)
@@ -479,20 +483,20 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 		tensor_mma_2x2(qh, masked_attn, vh, NULL);
 		tensor_assert_2d(qh, T, HLEN);
 
-		for (size_t t_idx = model->cache.use ? AT - 1 : 0; t_idx < AT; t_idx++) {
+		for (size_t t_idx = kv->read ? AT - 1 : 0; t_idx < AT; t_idx++) {
 			tensor_t row;
-			tensor_at(qh, model->cache.use ? 0 : t_idx, &row);
+			tensor_at(qh, kv->read ? 0 : t_idx, &row);
 			tensor_assert_1d(&row, HLEN);
 
 			tensor_t attn_tok;
-			tensor_at(output, model->cache.use ? 0 : t_idx, &attn_tok);
+			tensor_at(output, kv->read ? 0 : t_idx, &attn_tok);
 			tensor_reshape_2d(&attn_tok, H, HLEN);
 			tensor_set_inner(&attn_tok, h_idx, &row);
 		}
 	}
 }
 
-static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output)
+static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output, struct kvcache *kv)
 {
 	size_t E = model->embeddings;
 	size_t C = model->context;
@@ -543,7 +547,7 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 		tensor_assert_2d(tokens_attn, T, 3 * E);
 		profiler_record(2, "c_attn");
 
-		transformer(model, tokens_attn, attn, l);
+		transformer(model, tokens_attn, attn, l, kv);
 		profiler_record(3, "xformer");
 
 		if (model->transposed)
@@ -604,8 +608,6 @@ static void gpt2_cache_rotate(struct gpt2 *model)
 
 static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 {
-	assert(model->cache.use);
-
 	if (model->cache.size >= model->context)
 		gpt2_cache_rotate(model);
 
@@ -615,14 +617,8 @@ static void gpt2_eval(struct gpt2 *model, int tok, int pos, tensor_t *output)
 	if (pos >= (int)model->context)
 		pos = model->cache.size;
 
-	gpt2_eval_inner(model, &tok, &pos, 1, output);
+	gpt2_eval_inner(model, &tok, &pos, 1, output, &(struct kvcache){ .read = true, .write = true });
 	model->cache.size++;
-}
-
-static void gpt2_use_cache(struct gpt2 *model, bool use)
-{
-	model->cache.use = use;
-	model->cache.size = 0;
 }
 
 void gpt2_test_no_cache(struct gpt2 *model)
@@ -648,11 +644,9 @@ void gpt2_test_no_cache(struct gpt2 *model)
 	tensor_t *output = model->state.output;
 	tensor_t *logits = model->state.logits;
 
-	gpt2_use_cache(model, false);
-
 	profiler_start();
 	while (num--) {
-		gpt2_eval_inner(model, tok, pos, T, output);
+		gpt2_eval_inner(model, tok, pos, T, output, &(struct kvcache){});
 
 		tensor_t last_row;
 		tensor_at(output, T - 1, &last_row);
@@ -677,7 +671,7 @@ void gpt2_test_no_cache(struct gpt2 *model)
 
 	if (E == 768 && GPT2_EVAL_ROUNDS == 10) {
 		assert(memcmp(tok, exp, sizeof(int) * T) == 0);
-		printf("verified output\n");
+		fprintf(stderr, "verified output\n");
 	}
 
 	free(tok);
@@ -699,7 +693,7 @@ void gpt2_test_cache(struct gpt2 *model)
 	tensor_t *output = model->state.output;
 	tensor_t *logits = model->state.logits;
 
-	gpt2_use_cache(model, true);
+	model->cache.size = 0;
 
 	size_t nextch = 0;
 
@@ -735,7 +729,7 @@ void gpt2_test_cache(struct gpt2 *model)
 
 	if (E == 768 && GPT2_EVAL_ROUNDS == 10) {
 		assert(memcmp(got, exp, sizeof(int) * ARRAY_SIZE(got)) == 0);
-		printf("verified output\n");
+		fprintf(stderr, "verified output\n");
 	}
 }
 
@@ -750,27 +744,36 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	vocab = snapshot_vocab(model->ss);
 	assert(vocab);
 
-	int tok;
-	int pos = 0;
-
 	uint64_t total_begin = profiler_now();
 
 	tensor_t *output = model->state.output;
 	tensor_t *logits = model->state.logits;
 
+	/* tokenize the entire prompt first */
+	int *toks = malloc(C * sizeof(int));
+	int *poss = malloc(C * sizeof(int));
+	assert(toks && poss);
+
+	int T = 0;
+	int tok;
 	while ((tok = vocab_decode(vocab, text, &tok_sz)) != -1) {
 		printf("%.*s", tok_sz, text);
-
 		text += tok_sz;
-
-		gpt2_eval(model, tok, pos, output);
-		pos++;
+		assert(T < (int)C);
+		toks[T] = tok;
+		poss[T] = T;
+		T++;
 	}
+	fflush(stdout);
 
-	size_t nextch = 0;
+	/* batch prefill: run the entire prompt in one forward pass */
+	gpt2_eval_inner(model, toks, poss, T, output, &(struct kvcache){ .write = true });
+	model->cache.size = T;
+
+	int pos = T;
+
 	tensor_t last_row;
-
-	tensor_at(output, 0, &last_row);
+	tensor_at(output, T - 1, &last_row);
 	tensor_assert_1d(logits, model->vocab_len);
 	tensor_assert_1d(&last_row, E);
 	tensor_assert_2d(model->wte, model->vocab_len, E);
@@ -802,9 +805,12 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 		}
 	}
 	uint64_t total_end = profiler_now();
-	printf("\n");
+	fprintf(stderr, "\n");
 
-	printf("total=%fs\n", profiler_to_sec(total_end - total_begin));
+	fprintf(stderr, "total=%fs\n", profiler_to_sec(total_end - total_begin));
+
+	free(toks);
+	free(poss);
 }
 
 void gpt2_close(struct gpt2 *model)
