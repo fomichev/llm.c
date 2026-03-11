@@ -45,6 +45,7 @@ check:
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/nn.c tensor.c nn.c $(LIBS) && ./a.out
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/gguf.c gguf.c tensor.c $(LIBS) && ./a.out gpt2_$(M).gguf
 	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M).txt
 	diff models/gpt2/test/expected_$(M).txt models/gpt2/test/got_$(M).txt
 
