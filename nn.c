@@ -172,3 +172,37 @@ void softmax_2d(tensor_t *t)
 		softmax_1d(&row);
 	}
 }
+
+void top_k(tensor_t *f, size_t *top_n, scalar_t *top_v, size_t k)
+{
+	assert(k <= f->totlen);
+
+	for (size_t i = 0; i < k; i++) {
+		top_n[i] = 0;
+		top_v[i] = f->data[0];
+	}
+
+	for (size_t i = 1; i < f->totlen; i++) {
+		scalar_t new_v = f->data[i];
+		int new_p = -1;
+
+		for (size_t j = 0; j < k; j++) {
+			if (new_v > top_v[j])
+				new_p = j;
+		}
+
+		if (new_p < 0)
+			continue;
+
+		for (size_t j = 0; j < k; j++) {
+			if (j < new_p) {
+				top_n[j] = top_n[j+1];
+				top_v[j] = top_v[j+1];
+			} else if (j == new_p) {
+				top_n[j] = i;
+				top_v[j] = new_v;
+				break;
+			}
+		}
+	}
+}

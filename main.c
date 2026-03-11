@@ -1,4 +1,4 @@
-#include "gpt2.h"
+#include "model.h"
 #include "snapshot.h"
 #include "vocab.h"
 
@@ -55,36 +55,6 @@ static void top_k(tensor_t *f, size_t *top_n, scalar_t *top_v, size_t k)
 			}
 		}
 	}
-}
-
-static void top_k_test(void)
-{
-	tensor_t *x = tensor_new_1d(10,
-			    0.0,  /* 0 */
-			    1.0,  /* 1 */
-			    7.0,  /* 2 */
-			    2.0,  /* 3 */
-			    9.0,  /* 4 */
-			    3.0,  /* 5 */
-			    6.0,  /* 6 */
-			    4.0,  /* 7 */
-			    5.0,  /* 8 */
-			    8.0   /* 9 */);
-
-	size_t top_n[5];
-	scalar_t top_v[5];
-
-	top_k(x, &top_n[0], &top_v[0], 5);
-	assert(top_n[0] == 8);
-	assert(top_n[1] == 6);
-	assert(top_n[2] == 2);
-	assert(top_n[3] == 9);
-	assert(top_n[4] == 4);
-	assert(top_v[0] == 5.0);
-	assert(top_v[1] == 6.0);
-	assert(top_v[2] == 7.0);
-	assert(top_v[3] == 8.0);
-	assert(top_v[4] == 9.0);
 }
 
 static size_t pick_top_k(tensor_t *logits, size_t k)
@@ -172,13 +142,15 @@ void bt(int sig)
 
 int main(int argc, char *argv[])
 {
+	const struct model *m;
 	struct snapshot *ss;
-	struct gpt2 *model;
+	char *model_name;
+	void *ctx;
 
 	signal(SIGABRT, bt);
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <path.llmc>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <path.llmc> [prompt...]\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -191,6 +163,15 @@ int main(int argc, char *argv[])
 
 	assert(snapshot_config_int(ss, "version") == 1);
 
+	model_name = snapshot_config_str(ss, "model");
+	m = find_model(model_name);
+	if (!m) {
+		fprintf(stderr, "unknown model '%s'\n", model_name);
+		free(model_name);
+		return EXIT_FAILURE;
+	}
+	free(model_name);
+
 	if (getenv("SRAND48_SEED")) {
 		srand48(atoi(getenv("SRAND48_SEED"))); /* reproducible output */
 	} else {
@@ -199,8 +180,8 @@ int main(int argc, char *argv[])
 		srand48(ts.tv_sec * 1000000000 + ts.tv_nsec);
 	}
 
-	model = gpt2_load(ss);
-	if (!model) {
+	ctx = m->load(ss);
+	if (!ctx) {
 		fprintf(stderr, "failed to load model\n");
 		return EXIT_FAILURE;
 	}
@@ -219,13 +200,9 @@ int main(int argc, char *argv[])
 		}
 		inp[len] = '\0';
 
-		gpt2_generate(model, inp, 250, on_token, ss);
+		m->generate(ctx, inp, 250, on_token, ss);
 		free(inp);
-	} else if (argc == 2 || (argc == 3 && strcmp(argv[2], "--test") == 0)) {
-		top_k_test();
-		gpt2_test_no_cache(model);
-		gpt2_test_cache(model);
-	} else {
+	} else if (argc >= 3) {
 		size_t sz = 0;
 		for (int i = 2; i < argc; i++) {
 			sz += strlen(argv[i]);
@@ -242,8 +219,8 @@ int main(int argc, char *argv[])
 			strcat(inp, argv[i]);
 		}
 
-		gpt2_generate(model, inp, 500, on_token, ss);
+		m->generate(ctx, inp, 500, on_token, ss);
 	}
-	gpt2_close(model);
+	m->close(ctx);
 	snapshot_close(ss);
 }

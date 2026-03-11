@@ -22,3 +22,4 @@ void snapshot_close(struct snapshot *ss);
 struct file *snapshot_param(struct snapshot *ss);
 struct file *snapshot_vocab(struct snapshot *ss);
 int snapshot_config_int(struct snapshot *ss, const char *k);
+char *snapshot_config_str(struct snapshot *ss, const char *k);

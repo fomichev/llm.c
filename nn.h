@@ -11,3 +11,4 @@ void layer_norm(
 void softmax_1d(tensor_t *t);
 void softmax_2d(tensor_t *t);
 void gelua(tensor_t *t);
+void top_k(tensor_t *f, size_t *top_n, scalar_t *top_v, size_t k);

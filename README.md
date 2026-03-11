@@ -1,10 +1,14 @@
 # Large language model(s) in C
 
-GPT-2 inference implementation in pure C. The only external dependency
+LLM inference in pure C. The only external dependency
 is CBLAS (Intel MKL is what I've been using).
 
 The project is mostly (self) educational because original OpenAI TensorFlow
 implementation is not super comprehensible.
+
+## Supported models
+
+### GPT-2
 
 All GPT-2 flavors (124M/355M/774M/1558M) are supported and run perfectly fine.
 
@@ -15,7 +19,7 @@ Download and convert the GPT-2 124M model:
 ```
 $ git clone git@github.com:fomichev/llm.c.git
 $ cd llm.c
-$ ./download_model.sh 124M
+$ models/gpt2/download.sh 124M
 ```
 
 Build and run inference (500 tokens) starting with

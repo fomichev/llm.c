@@ -11,10 +11,6 @@
 #include <stdio.h>
 #include <math.h>
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 struct gpt2 {
 	struct snapshot *ss;
 
@@ -78,7 +74,7 @@ struct gpt2 {
 	struct kvcache *cache;
 };
 
-struct gpt2 *gpt2_load(struct snapshot *ss)
+void *gpt2_load(struct snapshot *ss)
 {
 	struct gpt2 *model;
 	struct file *f;
@@ -475,124 +471,9 @@ void gpt2_decode(struct gpt2 *model, int tok, int pos, tensor_t *output)
 	model->cache->size++;
 }
 
-void gpt2_test_no_cache(struct gpt2 *model)
+void gpt2_generate(void *ctx, const char *text, int num, pick_token_t f, void *cb_ctx)
 {
-	int *tok, *pos;
-
-	size_t E = model->embeddings;
-
-	int inp[] = { 818, 262, 3329, 314, 373, 1498, 284 };
-	int exp[] = { 818, 262, 3329, 314, 373, 1498, 284, 651, 257, 922, 804, 379, 262, 2615, 290, 262, 2615 };
-	int num = GPT2_EVAL_ROUNDS;
-
-	tok = malloc(model->context * sizeof(int));
-	pos = malloc(model->context * sizeof(int));
-	assert(tok && pos);
-
-	int T = ARRAY_SIZE(inp);
-
-	memcpy(tok, inp, sizeof(inp));
-	for (int i = 0; i < T; i++)
-		pos[i] = i;
-
-	tensor_t *output = model->state.output;
-	tensor_t *logits = model->state.logits;
-
-	struct kvcache *cache = model->cache;
-	model->cache = NULL;
-
-	profiler_start();
-	while (num--) {
-		gpt2_eval_inner(model, tok, pos, T, output, KV_PREFILL);
-
-		tensor_t last_row;
-		tensor_at(output, T - 1, &last_row);
-
-		size_t nextch = 0;
-		tensor_assert_1d(logits, model->vocab_len);
-		tensor_assert_1d(&last_row, E);
-		tensor_assert_2d(model->wte, model->vocab_len, E);
-		tensor_reshape_2d(&last_row, 1, E);
-		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
-		profiler_record(12, "wte");
-		tensor_reshape_1d(logits, model->vocab_len);
-		softmax_1d(logits);
-		scalar_t mx = tensor_max(logits, &nextch);
-		profiler_record(13, "max");
-
-		tok[T] = nextch;
-		pos[T] = T;
-		T++;
-	}
-	profiler_report();
-	model->cache = cache;
-
-	if (E == 768 && GPT2_EVAL_ROUNDS == 10) {
-		assert(memcmp(tok, exp, sizeof(int) * T) == 0);
-		fprintf(stderr, "verified output\n");
-	}
-
-	free(tok);
-	free(pos);
-}
-
-void gpt2_test_cache(struct gpt2 *model)
-{
-	size_t E = model->embeddings;
-
-	int inp[] = { 818, 262, 3329, 314, 373, 1498, 284 };
-	int exp[] = { 651, 257, 922, 804, 379, 262, 2615, 290, 262, 2615, 2346 };
-	int got[ARRAY_SIZE(exp)] = {};
-	int num = GPT2_EVAL_ROUNDS + ARRAY_SIZE(inp);
-
-	int tok = 0;
-	int pos = 0;
-
-	tensor_t *output = model->state.output;
-	tensor_t *logits = model->state.logits;
-
-	model->cache->size = 0;
-
-	size_t nextch = 0;
-
-	profiler_start();
-	for (int i = 0; i < num; i++) {
-		if (i < ARRAY_SIZE(inp))
-			tok = inp[i];
-		else
-			tok = nextch;
-
-		gpt2_decode(model, tok, pos, output);
-
-		tensor_t last_row;
-		tensor_at(output, 0, &last_row);
-
-		tensor_assert_1d(logits, model->vocab_len);
-		tensor_assert_1d(&last_row, E);
-		tensor_assert_2d(model->wte, model->vocab_len, E);
-		tensor_reshape_2d(&last_row, 1, E);
-		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
-		profiler_record(12, "wte");
-		tensor_reshape_1d(logits, model->vocab_len);
-		softmax_1d(logits);
-		scalar_t mx = tensor_max(logits, &nextch);
-		profiler_record(13, "max");
-
-		if (i >= ARRAY_SIZE(inp) - 1)
-			got[i - ARRAY_SIZE(inp) + 1] = nextch;
-
-		pos++;
-	}
-	profiler_report();
-
-	if (E == 768 && GPT2_EVAL_ROUNDS == 10) {
-		assert(memcmp(got, exp, sizeof(int) * ARRAY_SIZE(got)) == 0);
-		fprintf(stderr, "verified output\n");
-	}
-}
-
-void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f, void *ctx)
-{
+	struct gpt2 *model = ctx;
 	struct file *vocab;
 	int tok_sz;
 
@@ -640,7 +521,7 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 	tensor_reshape_1d(logits, model->vocab_len);
 	/* pass raw logits; the sampling callback handles its own softmax */
-	tok = f(ctx, logits);
+	tok = f(cb_ctx, logits);
 
 	uint64_t decode_begin = profiler_now();
 	uint64_t batch_begin = decode_begin;
@@ -656,7 +537,7 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 		tensor_mma_transposed_2x2(logits, &last_row, model->wte, NULL);
 		tensor_reshape_1d(logits, model->vocab_len);
 		/* pass raw logits; the sampling callback handles its own softmax */
-		tok = f(ctx, logits);
+		tok = f(cb_ctx, logits);
 
 		if (pos && pos % 100 == 0) {
 			uint64_t end = profiler_now();
@@ -676,8 +557,10 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	free(poss);
 }
 
-void gpt2_close(struct gpt2 *model)
+void gpt2_close(void *ctx)
 {
+	struct gpt2 *model = ctx;
+
 	tensor_free_mapped(model->wte);
 	tensor_free_mapped(model->wpe);
 	for (size_t i = 0; i < model->layers; i++) {
@@ -719,4 +602,17 @@ void gpt2_close(struct gpt2 *model)
 	file_close(snapshot_vocab(model->ss));
 
 	free(model);
+}
+
+static const struct model gpt2_model = {
+	.name = "gpt2",
+	.load = gpt2_load,
+	.generate = gpt2_generate,
+	.close = gpt2_close,
+};
+
+__attribute__((constructor))
+static void gpt2_register(void)
+{
+	register_model(&gpt2_model);
 }

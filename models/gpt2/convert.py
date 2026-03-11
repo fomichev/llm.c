@@ -120,6 +120,7 @@ with open(sys.argv[2]) as f:
 
 with open(f'{name}.llmc', 'w') as config:
     print('version', f'1', file=config);
+    print('model', 'gpt2', file=config);
     print('param_data', f'{name}_param.data', file=config);
     print('param_meta', f'{name}_param.meta', file=config);
     print('vocab_data', f'{name}_vocab.data', file=config);
