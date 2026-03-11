@@ -37,6 +37,6 @@ if [ ! -f "$ENCODER_FILE" ]; then
 fi
 
 echo "Converting $MODEL_NAME to llm.c format..."
-./gpt2_convert.py "$MODEL_NAME" "$ENCODER_FILE" "gpt2_${M}"
+"$(dirname "$0")/convert.py" "$MODEL_NAME" "$ENCODER_FILE" "gpt2_${M}"
 
 echo "Done. Model files written to gpt2_${M}.llmc"

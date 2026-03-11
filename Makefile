@@ -21,8 +21,9 @@ LIBS+=-lsleef
 
 O=3
 GPT2_EVAL_ROUNDS?=10
+MODEL?=gpt2
 
-CFLAGS=$(SLEEF_CFLAGS) $(BLAS_CFLAGS) -I. -O$(O) -march=native -DGPT2_EVAL_ROUNDS=$(GPT2_EVAL_ROUNDS) -rdynamic
+CFLAGS=$(SLEEF_CFLAGS) $(BLAS_CFLAGS) -I. -Imodels/$(MODEL) -O$(O) -march=native -DGPT2_EVAL_ROUNDS=$(GPT2_EVAL_ROUNDS) -rdynamic
 LDFLAGS=$(SLEEF_LDFLAGS) $(BLAS_LDFLAGS)
 CC=clang
 
@@ -38,14 +39,14 @@ all:
 	./llmc gpt2_$(M).llmc In the morning I was able to
 
 build:
-	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c gpt2.c kvcache.c snapshot.c vocab.c tensor.c profiler.c $(LIBS) -o llmc
+	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c models/$(MODEL)/$(MODEL).c nn.c kvcache.c snapshot.c vocab.c tensor.c profiler.c $(LIBS) -o llmc
 
 check:
 	$(MAKE) build
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
-	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc < test/prefill_$(M).txt > test/got_$(M).txt
-	diff test/expected_$(M).txt test/got_$(M).txt
+	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M).txt
+	diff models/gpt2/test/expected_$(M).txt models/gpt2/test/got_$(M).txt
 
 flamegraph:
 	$(MAKE) build O=0 GPT2_EVAL_ROUNDS=100
@@ -54,7 +55,7 @@ flamegraph:
 	$(FG)/flamegraph.pl out.perf-folded > perf.svg
 
 convert:
-	./gpt2_convert.py ~/src/gpt-2/pytorch_$(M) ~/src/gpt-2/models/$(M)/encoder.json gpt2_$(M)
+	models/gpt2/convert.py ~/src/gpt-2/pytorch_$(M) ~/src/gpt-2/models/$(M)/encoder.json gpt2_$(M)
 
 eval:
-	./gpt2_eval.py ~/src/gpt-2/pytorch_$(M)
+	models/gpt2/eval.py ~/src/gpt-2/pytorch_$(M)
