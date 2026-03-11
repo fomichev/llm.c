@@ -1,4 +1,6 @@
-#include "llm.h"
+#include "tensor.h"
+
+#include <stdbool.h>
 #include "test/test.h"
 
 static void tensor_eq_str(tensor_t *t, const char *expected)

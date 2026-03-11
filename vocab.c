@@ -1,4 +1,4 @@
-#include "llm.h"
+#include "snapshot.h"
 
 int vocab_decode(struct file *f, const char *s, int *sz)
 {

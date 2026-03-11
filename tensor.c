@@ -1,13 +1,8 @@
-#include "llm.h"
-#include "simd.h"
+#include "tensor.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <cblas.h>
-
-#include "tensor.h"
 
 static tensor_t *tensor_new_raw(void *data, size_t ndim)
 {

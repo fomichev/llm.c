@@ -1,10 +1,18 @@
-#include "llm.h"
+#include "gpt2.h"
+#include "snapshot.h"
+#include "vocab.h"
+#include "kvcache.h"
+#include "simd.h"
 #include "profiler.h"
 
-#include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 struct gpt2 {
 	struct snapshot *ss;

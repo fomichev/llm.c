@@ -1,6 +1,7 @@
-#include "llm.h"
+#include "gpt2.h"
+#include "snapshot.h"
+#include "vocab.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -9,6 +10,10 @@
 #include <unistd.h>
 #include <execinfo.h>
 #include <time.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 static size_t pick_greedy(tensor_t *logits)
 {

@@ -1,7 +1,11 @@
 #pragma once
 
+#include <stdint.h>
+#include <stddef.h>
 #include <assert.h>
 #include <stdio.h>
+
+#include "simd.h"
 
 typedef struct {
 	scalar_t *data;
