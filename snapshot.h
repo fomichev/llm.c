@@ -14,6 +14,7 @@ void *file_at(const struct file *f, size_t pos);
 size_t file_at_len(const struct file *f, size_t pos);
 bool file_is_eof(struct file *f);
 tensor_t *file_tensor(struct file *f, size_t ndim, ...);
+void file_skip(struct file *f);
 
 struct snapshot;
 
@@ -23,3 +24,5 @@ struct file *snapshot_param(struct snapshot *ss);
 struct file *snapshot_vocab(struct snapshot *ss);
 int snapshot_config_int(struct snapshot *ss, const char *k);
 char *snapshot_config_str(struct snapshot *ss, const char *k);
+
+tensor_t *snapshot_tensor(struct snapshot *ss, const char *name, size_t ndim, ...);

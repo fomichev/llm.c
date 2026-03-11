@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -170,6 +171,12 @@ tensor_t *file_tensor(struct file *f, size_t ndim, ...)
 	return t;
 }
 
+void file_skip(struct file *f)
+{
+	assert(f->pos < file_len(f));
+	f->pos++;
+}
+
 struct snapshot {
 	FILE *config;
 	struct file *file_param;
@@ -264,4 +271,19 @@ struct file *snapshot_vocab(struct snapshot *ss)
 		free(data);
 	}
 	return ss->file_vocab;
+}
+
+tensor_t *snapshot_tensor(struct snapshot *ss, const char *name, size_t ndim, ...)
+{
+	va_list ap;
+	va_start(ap, ndim);
+	size_t d1 = va_arg(ap, size_t);
+	size_t d2 = va_arg(ap, size_t);
+	size_t d3 = va_arg(ap, size_t);
+	size_t d4 = va_arg(ap, size_t);
+	va_end(ap);
+
+	/* .llmc: sequential read (name is ignored) */
+	struct file *f = snapshot_param(ss);
+	return file_tensor(f, ndim, d1, d2, d3, d4);
 }

@@ -4,8 +4,8 @@ LIBS=-lm
 #BLAS_LDFLAGS=$(shell pkg-config --libs cblas)
 
 # OpenBLAS
-BLAS_CFLAGS=$(shell pkg-config --cflags openblas)
-BLAS_LDFLAGS=$(shell pkg-config --libs openblas)
+BLAS_CFLAGS=-I/usr/include/openblas
+BLAS_LDFLAGS=-lopenblas
 
 # Intel MKL
 #BLAS_CFLAGS=$(shell pkg-config --cflags mkl-dynamic-lp64-iomp)
@@ -15,9 +15,9 @@ BLAS_LDFLAGS=$(shell pkg-config --libs openblas)
 #BLAS_CFLAGS=-I/opt/rocm/include
 #BLAS_LDFLAGS=-L/opt/rocm/lib -lrocblas -Dcblas_sgemm=rocblas_sgemm
 
-SLEEF_CFLAGS=-I$(HOME)/src/sleef/install/include -D USE_SLEEF
-SLEEF_LDFLAGS=-L$(HOME)/src/sleef/install/lib
-LIBS+=-lsleef
+#SLEEF_CFLAGS=-I$(HOME)/src/sleef/install/include -D USE_SLEEF
+#SLEEF_LDFLAGS=-L$(HOME)/src/sleef/install/lib
+#LIBS+=-lsleef
 
 O=3
 MODEL?=gpt2

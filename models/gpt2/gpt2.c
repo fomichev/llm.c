@@ -33,9 +33,6 @@ struct gpt2 {
 		const tensor_t *ln_1_bias;
 
 		struct gpt2attn {
-			const tensor_t *bias;
-			const tensor_t *masked_bias;
-
 			const tensor_t *c_attn_weight;
 			const tensor_t *c_attn_bias;
 
@@ -77,15 +74,13 @@ struct gpt2 {
 void *gpt2_load(struct snapshot *ss)
 {
 	struct gpt2 *model;
-	struct file *f;
-	size_t idx = 0;
+	char name[64];
 
 	model = calloc(1, sizeof(*model));
 	if (!model)
 		return NULL;
 
 	model->ss = ss;
-	f = snapshot_param(ss);
 
 	model->context = snapshot_config_int(ss, "context"); /* 1024 */
 	model->head_len = snapshot_config_int(ss, "head_len"); /* 64 */
@@ -107,42 +102,60 @@ void *gpt2_load(struct snapshot *ss)
 	model->hl = calloc(model->layers, sizeof(*model->hl));
 	assert(model->hl);
 
-	model->wte = file_tensor(f, 2, model->vocab_len, E);
-	model->wpe = file_tensor(f, 2, C, E);
+	model->wte = snapshot_tensor(ss, "token_embd.weight", 2, model->vocab_len, E);
+	model->wpe = snapshot_tensor(ss, "position_embd.weight", 2, C, E);
 
 	for (size_t i = 0; i < model->layers; i++) {
-		model->hl[i].ln_1_weight = file_tensor(f, 1, E);
-		model->hl[i].ln_1_bias = file_tensor(f, 1, E);
-		model->hl[i].attn.bias = file_tensor(f, 4, 1, 1, C, C);
-		model->hl[i].attn.masked_bias = file_tensor(f, 1, 1);
+		snprintf(name, sizeof(name), "blk.%zu.attn_norm.weight", i);
+		model->hl[i].ln_1_weight = snapshot_tensor(ss, name, 1, E);
+		snprintf(name, sizeof(name), "blk.%zu.attn_norm.bias", i);
+		model->hl[i].ln_1_bias = snapshot_tensor(ss, name, 1, E);
+
+		file_skip(snapshot_param(ss)); /* attn.bias */
+		file_skip(snapshot_param(ss)); /* attn.masked_bias */
+
+		snprintf(name, sizeof(name), "blk.%zu.attn_qkv.weight", i);
 		if (model->transposed)
-			model->hl[i].attn.c_attn_weight = file_tensor(f, 2, E * 3, E);
+			model->hl[i].attn.c_attn_weight = snapshot_tensor(ss, name, 2, E * 3, E);
 		else
-			model->hl[i].attn.c_attn_weight = file_tensor(f, 2, E, E * 3);
-		model->hl[i].attn.c_attn_bias = file_tensor(f, 1, E * 3);
+			model->hl[i].attn.c_attn_weight = snapshot_tensor(ss, name, 2, E, E * 3);
+		snprintf(name, sizeof(name), "blk.%zu.attn_qkv.bias", i);
+		model->hl[i].attn.c_attn_bias = snapshot_tensor(ss, name, 1, E * 3);
+
+		snprintf(name, sizeof(name), "blk.%zu.attn_output.weight", i);
 		if (model->transposed)
-			model->hl[i].attn.c_proj_weight = file_tensor(f, 2, E, E);
+			model->hl[i].attn.c_proj_weight = snapshot_tensor(ss, name, 2, E, E);
 		else
-			model->hl[i].attn.c_proj_weight = file_tensor(f, 2, E, E);
-		model->hl[i].attn.c_proj_bias = file_tensor(f, 1, E);
-		model->hl[i].ln_2_weight = file_tensor(f, 1, E);
-		model->hl[i].ln_2_bias = file_tensor(f, 1, E);
+			model->hl[i].attn.c_proj_weight = snapshot_tensor(ss, name, 2, E, E);
+		snprintf(name, sizeof(name), "blk.%zu.attn_output.bias", i);
+		model->hl[i].attn.c_proj_bias = snapshot_tensor(ss, name, 1, E);
+
+		snprintf(name, sizeof(name), "blk.%zu.ffn_norm.weight", i);
+		model->hl[i].ln_2_weight = snapshot_tensor(ss, name, 1, E);
+		snprintf(name, sizeof(name), "blk.%zu.ffn_norm.bias", i);
+		model->hl[i].ln_2_bias = snapshot_tensor(ss, name, 1, E);
+
+		snprintf(name, sizeof(name), "blk.%zu.ffn_up.weight", i);
 		if (model->transposed)
-			model->hl[i].mlp.c_fc_weight = file_tensor(f, 2, E * 4, E);
+			model->hl[i].mlp.c_fc_weight = snapshot_tensor(ss, name, 2, E * 4, E);
 		else
-			model->hl[i].mlp.c_fc_weight = file_tensor(f, 2, E, E * 4);
-		model->hl[i].mlp.c_fc_bias = file_tensor(f, 1, E * 4);
+			model->hl[i].mlp.c_fc_weight = snapshot_tensor(ss, name, 2, E, E * 4);
+		snprintf(name, sizeof(name), "blk.%zu.ffn_up.bias", i);
+		model->hl[i].mlp.c_fc_bias = snapshot_tensor(ss, name, 1, E * 4);
+
+		snprintf(name, sizeof(name), "blk.%zu.ffn_down.weight", i);
 		if (model->transposed)
-			model->hl[i].mlp.c_proj_weight = file_tensor(f, 2, E, E * 4);
+			model->hl[i].mlp.c_proj_weight = snapshot_tensor(ss, name, 2, E, E * 4);
 		else
-			model->hl[i].mlp.c_proj_weight = file_tensor(f, 2, E * 4, E);
-		model->hl[i].mlp.c_proj_bias = file_tensor(f, 1, E);
+			model->hl[i].mlp.c_proj_weight = snapshot_tensor(ss, name, 2, E * 4, E);
+		snprintf(name, sizeof(name), "blk.%zu.ffn_down.bias", i);
+		model->hl[i].mlp.c_proj_bias = snapshot_tensor(ss, name, 1, E);
 	}
 
-	model->ln_f_weight = file_tensor(f, 1, E);
-	model->ln_f_bias = file_tensor(f, 1, E);
+	model->ln_f_weight = snapshot_tensor(ss, "output_norm.weight", 1, E);
+	model->ln_f_bias = snapshot_tensor(ss, "output_norm.bias", 1, E);
 
-	assert(file_is_eof(f));
+	assert(file_is_eof(snapshot_param(ss)));
 
 	model->state.output = tensor_new_zero(2, C, E);
 	model->state.tokens = tensor_new_zero(2, C, E);
@@ -566,8 +579,6 @@ void gpt2_close(void *ctx)
 	for (size_t i = 0; i < model->layers; i++) {
 		tensor_free_mapped(model->hl[i].ln_1_weight);
 		tensor_free_mapped(model->hl[i].ln_1_bias);
-		tensor_free_mapped(model->hl[i].attn.bias);
-		tensor_free_mapped(model->hl[i].attn.masked_bias);
 		tensor_free_mapped(model->hl[i].attn.c_attn_weight);
 		tensor_free_mapped(model->hl[i].attn.c_attn_bias);
 		tensor_free_mapped(model->hl[i].attn.c_proj_weight);
