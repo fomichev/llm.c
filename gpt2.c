@@ -160,7 +160,7 @@ struct gpt2 *gpt2_load(struct snapshot *ss)
 	model->state.mlp_fc = tensor_new_zero(2, C, E * 4);
 	model->state.logits = tensor_new_zero(1, model->vocab_len);
 
-	model->cache = kvcache_alloc(model->layers, C, E);
+	model->cache = kvcache_alloc(model->layers, C, H, HLEN);
 	assert(model->cache);
 
 	uint64_t totmem = 0;
@@ -388,76 +388,114 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	tensor_resize(vh, AT);
 	tensor_resize_2d(masked_attn, AT, AT);
 
+	/*
+	 * Tensor views: tensor_at(t, i, &view) returns a zero-copy view
+	 * pointing into t's data with one fewer dimension (like numpy's
+	 * t[i]). tensor_reshape reinterprets dimensions without copying.
+	 * Chaining the two drills into flat row-major data:
+	 *
+	 *   input                             (T, 3*E)
+	 *   tensor_at(input, t_idx, &tok)  -> (3*E)      select token
+	 *   tensor_reshape_2d(&tok, 3, E)  -> (3, E)     split Q/K/V
+	 *   tensor_at(&tok, 1, &k)         -> (E)        select K
+	 *   tensor_reshape_2d(&k, H, HLEN) -> (H, HLEN)  split heads
+	 *   tensor_at(&k, h_idx, &k)       -> (HLEN)     select head
+	 *
+	 * KV cache is (H, C, HLEN) per layer: heads are the outer
+	 * dimension so each head's tokens are contiguous. tensor_at on
+	 * the cache gives a (C, HLEN) view that BLAS reads directly -
+	 * no per-token extraction loop needed.
+	 */
 	for (size_t h_idx = 0; h_idx < H; h_idx++) {
+		tensor_t cache_k, cache_v;
+		tensor_t *kh_src = kh;
+		tensor_t *vh_src = vh;
+
 		if (decode) {
-			tensor_t tok, q;
+			tensor_t tok;
 			tensor_at(input, 0, &tok);
 			tensor_reshape_2d(&tok, 3, E);
+
+			/* Q: extract from the single input token */
+			tensor_t q;
 			tensor_at(&tok, 0, &q);
 			tensor_reshape_2d(&q, H, HLEN);
 			tensor_at(&q, h_idx, &q);
 			tensor_set_inner(qh, 0, &q);
-		}
 
-		for (size_t t_idx = 0; t_idx < AT; t_idx++) {
-			tensor_t tok;
-			tensor_at(input, prefill ? t_idx : 0, &tok);
-			tensor_assert_1d(&tok, 3 * E);
-			tensor_reshape_2d(&tok, 3, E);
+			/* K: get contiguous (C, HLEN) view, write new token */
+			kvcache_get_k(cache, l, h_idx, &cache_k);
 
-			if (prefill) {
+			tensor_t k;
+			tensor_at(&tok, 1, &k);
+			tensor_reshape_2d(&k, H, HLEN);
+			tensor_at(&k, h_idx, &k);
+			tensor_set_inner(&cache_k, cache->size, &k);
+
+			tensor_resize(&cache_k, AT);
+			kh_src = &cache_k;
+
+			/* V: same pattern */
+			kvcache_get_v(cache, l, h_idx, &cache_v);
+
+			tensor_t v;
+			tensor_at(&tok, 2, &v);
+			tensor_reshape_2d(&v, H, HLEN);
+			tensor_at(&v, h_idx, &v);
+			tensor_set_inner(&cache_v, cache->size, &v);
+
+			tensor_resize(&cache_v, AT);
+			vh_src = &cache_v;
+		} else {
+			/* Prefill path */
+			if (cache) {
+				kvcache_get_k(cache, l, h_idx, &cache_k);
+				kvcache_get_v(cache, l, h_idx, &cache_v);
+			}
+
+			for (size_t t_idx = 0; t_idx < T; t_idx++) {
+				tensor_t tok;
+				tensor_at(input, t_idx, &tok);
+				tensor_reshape_2d(&tok, 3, E);
+
 				tensor_t q;
 				tensor_at(&tok, 0, &q);
 				tensor_reshape_2d(&q, H, HLEN);
 				tensor_at(&q, h_idx, &q);
 				tensor_set_inner(qh, t_idx, &q);
-			}
 
-			tensor_t k;
-			if (decode && t_idx + 1 != AT) {
-				kvcache_get_k(cache, l, t_idx, &k);
-				tensor_reshape_2d(&k, H, HLEN);
-				tensor_at(&k, h_idx, &k);
-			} else {
+				tensor_t k;
 				tensor_at(&tok, 1, &k);
 				tensor_reshape_2d(&k, H, HLEN);
 				tensor_at(&k, h_idx, &k);
+				if (cache)
+					tensor_set_inner(&cache_k, t_idx, &k);
+				else
+					tensor_set_inner(kh, t_idx, &k);
 
-				if (cache) {
-					tensor_t ck;
-					kvcache_get_k(cache, l, t_idx, &ck);
-					tensor_reshape_2d(&ck, H, HLEN);
-					tensor_set_inner(&ck, h_idx, &k);
-				}
-			}
-			tensor_set_inner(kh, t_idx, &k);
-
-			tensor_t v;
-			if (decode && t_idx + 1 != AT) {
-				kvcache_get_v(cache, l, t_idx, &v);
-				tensor_reshape_2d(&v, H, HLEN);
-				tensor_at(&v, h_idx, &v);
-				tensor_assert_1d(&v, HLEN);
-			} else {
+				tensor_t v;
 				tensor_at(&tok, 2, &v);
 				tensor_reshape_2d(&v, H, HLEN);
 				tensor_at(&v, h_idx, &v);
-				tensor_assert_1d(&v, HLEN);
-
-				if (cache) {
-					tensor_t cv;
-					kvcache_get_v(cache, l, t_idx, &cv);
-					tensor_reshape_2d(&cv, H, HLEN);
-					tensor_set_inner(&cv, h_idx, &v);
-				}
+				if (cache)
+					tensor_set_inner(&cache_v, t_idx, &v);
+				else
+					tensor_set_inner(vh, t_idx, &v);
 			}
-			tensor_set_inner(vh, t_idx, &v);
+
+			if (cache) {
+				tensor_resize(&cache_k, AT);
+				kh_src = &cache_k;
+
+				tensor_resize(&cache_v, AT);
+				vh_src = &cache_v;
+			}
 		}
 
 		tensor_assert_2d(qh, T, HLEN);
-		tensor_assert_2d(kh, AT, HLEN);
-		tensor_assert_2d(vh, AT, HLEN);
-		tensor_mma_transposed_2x2(masked_attn, qh, kh, NULL);
+		tensor_assert_2d(kh_src, AT, HLEN);
+		tensor_assert_2d(vh_src, AT, HLEN);
+		tensor_mma_transposed_2x2(masked_attn, qh, kh_src, NULL);
 		tensor_assert_2d(masked_attn, T, AT);
 		tensor_div_scalar(masked_attn, masked_attn, model->hlen_sq);
 
@@ -474,9 +512,9 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 		softmax_2d(masked_attn);
 
 		tensor_assert_2d(masked_attn, T, AT);
-		tensor_assert_2d(vh, AT, HLEN);
+		tensor_assert_2d(vh_src, AT, HLEN);
 
-		tensor_mma_2x2(qh, masked_attn, vh, NULL);
+		tensor_mma_2x2(qh, masked_attn, vh_src, NULL);
 		tensor_assert_2d(qh, T, HLEN);
 
 		for (size_t t_idx = prefill ? 0 : AT - 1; t_idx < AT; t_idx++) {

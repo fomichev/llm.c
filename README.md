@@ -6,19 +6,6 @@ is CBLAS (Intel MKL is what I've been using).
 The project is mostly (self) educational because original OpenAI TensorFlow
 implementation is not super comprehensible.
 
-## Implementation details
-
-Transformer implementation is not super optimal:
-
-* Instead of head-qkv permutation (in python case), I'm doing a copy to the per-head buffer.
-* No threading (besides Intel MKL for matmul), all transformer heads run in sequence.
-
-OTOH, KV-cache is implemented which seems to bring performance close to
-the PyTorch Hugging Face implementation.
-
-The model parameters are converted into mmap-able format so even the models
-that don't fit into RAM should be able to run (albeit super slowly).
-
 All GPT-2 flavors (124M/355M/774M/1558M) are supported and run perfectly fine.
 
 ## HOWTO
