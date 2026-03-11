@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <signal.h>
+#include <string.h>
+#include <unistd.h>
 #include <execinfo.h>
 #include <time.h>
 
@@ -197,7 +199,24 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "failed to load model\n");
 		return EXIT_FAILURE;
 	}
-	if (argc == 2) {
+	if (argc == 2 && !isatty(fileno(stdin))) {
+		size_t cap = 4096, len = 0;
+		char *inp = malloc(cap);
+		assert(inp);
+		size_t n;
+		while ((n = fread(inp + len, 1, cap - len, stdin)) > 0) {
+			len += n;
+			if (len == cap) {
+				cap *= 2;
+				inp = realloc(inp, cap);
+				assert(inp);
+			}
+		}
+		inp[len] = '\0';
+
+		gpt2_generate(model, inp, 250, on_token, ss);
+		free(inp);
+	} else if (argc == 2 || (argc == 3 && strcmp(argv[2], "--test") == 0)) {
 		top_k_test();
 		gpt2_test_no_cache(model);
 		gpt2_test_cache(model);

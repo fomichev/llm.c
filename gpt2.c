@@ -748,7 +748,9 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	fflush(stdout);
 
 	/* batch prefill: run the entire prompt in one forward pass */
+	uint64_t prefill_begin = profiler_now();
 	gpt2_prefill(model, toks, poss, T, output);
+	uint64_t prefill_end = profiler_now();
 
 	int pos = T;
 
@@ -763,7 +765,8 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 	/* pass raw logits; the sampling callback handles its own softmax */
 	tok = f(ctx, logits);
 
-	uint64_t begin = profiler_now();
+	uint64_t decode_begin = profiler_now();
+	uint64_t batch_begin = decode_begin;
 	while (num--) {
 		gpt2_decode(model, tok, pos, output);
 		pos++;
@@ -780,14 +783,17 @@ void gpt2_generate(struct gpt2 *model, const char *text, int num, pick_token_t f
 
 		if (pos && pos % 100 == 0) {
 			uint64_t end = profiler_now();
-			fprintf(stderr, "[%d tokens, %.9f tok/sec]", pos, (100/profiler_to_sec(end-begin)));
-			begin = end;
+			fprintf(stderr, "[%d tokens, %.9f tok/sec]", pos, (100/profiler_to_sec(end-batch_begin)));
+			batch_begin = end;
 		}
 	}
-	uint64_t total_end = profiler_now();
+	uint64_t decode_end = profiler_now();
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "total=%fs\n", profiler_to_sec(total_end - total_begin));
+	fprintf(stderr, "prefill=%fs (%d tokens) decode=%fs total=%fs\n",
+	        profiler_to_sec(prefill_end - prefill_begin), T,
+	        profiler_to_sec(decode_end - decode_begin),
+	        profiler_to_sec(decode_end - total_begin));
 
 	free(toks);
 	free(poss);

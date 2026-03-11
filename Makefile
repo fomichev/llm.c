@@ -44,7 +44,7 @@ check:
 	$(MAKE) build
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
-	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc In the morning I was able to > test/got_$(M).txt
+	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc < test/prefill_$(M).txt > test/got_$(M).txt
 	diff test/expected_$(M).txt test/got_$(M).txt
 
 flamegraph:
