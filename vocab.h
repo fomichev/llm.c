@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-struct file;
+struct gguf;
 
-const char *vocab_encode(struct file *f, size_t token);
-int vocab_decode(struct file *f, const char *s, int *sz);
+const char *vocab_encode(struct gguf *g, size_t token);
+int vocab_decode(struct gguf *g, const char *s, int *sz);

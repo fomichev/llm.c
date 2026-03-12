@@ -4,13 +4,13 @@
 
 #include "tensor.h"
 
-struct snapshot;
+struct gguf;
 
 typedef size_t (*pick_token_t)(void *ctx, tensor_t *logits);
 
 struct model {
 	const char *name;
-	void *(*load)(struct snapshot *ss);
+	void *(*load)(struct gguf *g);
 	void (*generate)(void *ctx, const char *text, int num, pick_token_t f, void *cb_ctx);
 	void (*close)(void *ctx);
 };

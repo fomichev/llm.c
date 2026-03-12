@@ -1,6 +1,6 @@
 #include "gpt2.h"
 #include "nn.h"
-#include "snapshot.h"
+#include "gguf.h"
 #include "vocab.h"
 #include "kvcache.h"
 #include "simd.h"
@@ -12,7 +12,7 @@
 #include <math.h>
 
 struct gpt2 {
-	struct snapshot *ss;
+	struct gguf *gguf;
 
 	struct {
 		size_t context; /* context size */
@@ -21,7 +21,6 @@ struct gpt2 {
 		size_t layers; /* number of hidden layers */
 		size_t embeddings; /* embeddings size */
 		size_t vocab_len; /* vocabulary size */
-		bool transposed; /* whether the weights were pre-transposed */
 	};
 
 	scalar_t hlen_sq;
@@ -71,24 +70,22 @@ struct gpt2 {
 	struct kvcache *cache;
 };
 
-void *gpt2_load(struct snapshot *ss)
+void *gpt2_load(struct gguf *g)
 {
 	struct gpt2 *model;
-	char name[64];
 
 	model = calloc(1, sizeof(*model));
 	if (!model)
 		return NULL;
 
-	model->ss = ss;
+	model->gguf = g;
 
-	model->context = snapshot_config_int(ss, "context"); /* 1024 */
-	model->head_len = snapshot_config_int(ss, "head_len"); /* 64 */
-	model->heads = snapshot_config_int(ss, "heads"); /* 12 */
-	model->layers = snapshot_config_int(ss, "layers"); /* 12 */
-	model->embeddings = snapshot_config_int(ss, "embeddings"); /* 768 */
-	model->vocab_len = snapshot_config_int(ss, "vocab_len"); /* 50257 */
-	model->transposed = snapshot_config_int(ss, "transposed"); /* false */
+	model->context = gguf_get_uint32(g, "gpt2.context_length"); /* 1024 */
+	model->embeddings = gguf_get_uint32(g, "gpt2.embedding_length"); /* 768 */
+	model->heads = gguf_get_uint32(g, "gpt2.attention.head_count"); /* 12 */
+	model->layers = gguf_get_uint32(g, "gpt2.block_count"); /* 12 */
+	model->head_len = model->embeddings / model->heads; /* 64 */
+	model->vocab_len = gguf_get_arr_n(g, "tokenizer.ggml.tokens"); /* 50257 */
 
 	size_t C = model->context;
 	size_t HLEN = model->head_len;
@@ -102,60 +99,31 @@ void *gpt2_load(struct snapshot *ss)
 	model->hl = calloc(model->layers, sizeof(*model->hl));
 	assert(model->hl);
 
-	model->wte = snapshot_tensor(ss, "token_embd.weight", 2, model->vocab_len, E);
-	model->wpe = snapshot_tensor(ss, "position_embd.weight", 2, C, E);
+	model->wte = gguf_tensor_2d(g, model->vocab_len, E, "token_embd.weight");
+	model->wpe = gguf_tensor_2d(g, C, E, "position_embd.weight");
 
 	for (size_t i = 0; i < model->layers; i++) {
-		snprintf(name, sizeof(name), "blk.%zu.attn_norm.weight", i);
-		model->hl[i].ln_1_weight = snapshot_tensor(ss, name, 1, E);
-		snprintf(name, sizeof(name), "blk.%zu.attn_norm.bias", i);
-		model->hl[i].ln_1_bias = snapshot_tensor(ss, name, 1, E);
+		model->hl[i].ln_1_weight = gguf_tensor_1d(g, E, "blk.%zu.attn_norm.weight", i);
+		model->hl[i].ln_1_bias = gguf_tensor_1d(g, E, "blk.%zu.attn_norm.bias", i);
 
-		file_skip(snapshot_param(ss)); /* attn.bias */
-		file_skip(snapshot_param(ss)); /* attn.masked_bias */
+		model->hl[i].attn.c_attn_weight = gguf_tensor_2d(g, E * 3, E, "blk.%zu.attn_qkv.weight", i);
+		model->hl[i].attn.c_attn_bias = gguf_tensor_1d(g, E * 3, "blk.%zu.attn_qkv.bias", i);
 
-		snprintf(name, sizeof(name), "blk.%zu.attn_qkv.weight", i);
-		if (model->transposed)
-			model->hl[i].attn.c_attn_weight = snapshot_tensor(ss, name, 2, E * 3, E);
-		else
-			model->hl[i].attn.c_attn_weight = snapshot_tensor(ss, name, 2, E, E * 3);
-		snprintf(name, sizeof(name), "blk.%zu.attn_qkv.bias", i);
-		model->hl[i].attn.c_attn_bias = snapshot_tensor(ss, name, 1, E * 3);
+		model->hl[i].attn.c_proj_weight = gguf_tensor_2d(g, E, E, "blk.%zu.attn_output.weight", i);
+		model->hl[i].attn.c_proj_bias = gguf_tensor_1d(g, E, "blk.%zu.attn_output.bias", i);
 
-		snprintf(name, sizeof(name), "blk.%zu.attn_output.weight", i);
-		if (model->transposed)
-			model->hl[i].attn.c_proj_weight = snapshot_tensor(ss, name, 2, E, E);
-		else
-			model->hl[i].attn.c_proj_weight = snapshot_tensor(ss, name, 2, E, E);
-		snprintf(name, sizeof(name), "blk.%zu.attn_output.bias", i);
-		model->hl[i].attn.c_proj_bias = snapshot_tensor(ss, name, 1, E);
+		model->hl[i].ln_2_weight = gguf_tensor_1d(g, E, "blk.%zu.ffn_norm.weight", i);
+		model->hl[i].ln_2_bias = gguf_tensor_1d(g, E, "blk.%zu.ffn_norm.bias", i);
 
-		snprintf(name, sizeof(name), "blk.%zu.ffn_norm.weight", i);
-		model->hl[i].ln_2_weight = snapshot_tensor(ss, name, 1, E);
-		snprintf(name, sizeof(name), "blk.%zu.ffn_norm.bias", i);
-		model->hl[i].ln_2_bias = snapshot_tensor(ss, name, 1, E);
+		model->hl[i].mlp.c_fc_weight = gguf_tensor_2d(g, E * 4, E, "blk.%zu.ffn_up.weight", i);
+		model->hl[i].mlp.c_fc_bias = gguf_tensor_1d(g, E * 4, "blk.%zu.ffn_up.bias", i);
 
-		snprintf(name, sizeof(name), "blk.%zu.ffn_up.weight", i);
-		if (model->transposed)
-			model->hl[i].mlp.c_fc_weight = snapshot_tensor(ss, name, 2, E * 4, E);
-		else
-			model->hl[i].mlp.c_fc_weight = snapshot_tensor(ss, name, 2, E, E * 4);
-		snprintf(name, sizeof(name), "blk.%zu.ffn_up.bias", i);
-		model->hl[i].mlp.c_fc_bias = snapshot_tensor(ss, name, 1, E * 4);
-
-		snprintf(name, sizeof(name), "blk.%zu.ffn_down.weight", i);
-		if (model->transposed)
-			model->hl[i].mlp.c_proj_weight = snapshot_tensor(ss, name, 2, E, E * 4);
-		else
-			model->hl[i].mlp.c_proj_weight = snapshot_tensor(ss, name, 2, E * 4, E);
-		snprintf(name, sizeof(name), "blk.%zu.ffn_down.bias", i);
-		model->hl[i].mlp.c_proj_bias = snapshot_tensor(ss, name, 1, E);
+		model->hl[i].mlp.c_proj_weight = gguf_tensor_2d(g, E, E * 4, "blk.%zu.ffn_down.weight", i);
+		model->hl[i].mlp.c_proj_bias = gguf_tensor_1d(g, E, "blk.%zu.ffn_down.bias", i);
 	}
 
-	model->ln_f_weight = snapshot_tensor(ss, "output_norm.weight", 1, E);
-	model->ln_f_bias = snapshot_tensor(ss, "output_norm.bias", 1, E);
-
-	assert(file_is_eof(snapshot_param(ss)));
+	model->ln_f_weight = gguf_tensor_1d(g, E, "output_norm.weight");
+	model->ln_f_bias = gguf_tensor_1d(g, E, "output_norm.bias");
 
 	model->state.output = tensor_new_zero(2, C, E);
 	model->state.tokens = tensor_new_zero(2, C, E);
@@ -414,20 +382,14 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 		layer_norm(output, tmp_mat, hl->ln_1_weight, hl->ln_1_bias);
 		profiler_record(1, "ln1");
 
-		if (model->transposed)
-			tensor_mma_transposed_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
-		else
-			tensor_mma_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
+		tensor_mma_transposed_2x2(tokens_attn, output, a->c_attn_weight, a->c_attn_bias);
 		tensor_assert_2d(tokens_attn, T, 3 * E);
 		profiler_record(2, "c_attn");
 
 		transformer(model, tokens_attn, attn, l, mode);
 		profiler_record(3, "xformer");
 
-		if (model->transposed)
-			tensor_mma_transposed_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
-		else
-			tensor_mma_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
+		tensor_mma_transposed_2x2(tmp_mat, attn, a->c_proj_weight, a->c_proj_bias);
 		profiler_record(4, "c_proj");
 
 		tensor_assert_2d(tmp_mat, T, E);
@@ -440,20 +402,14 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 		tensor_assert_2d(output, T, E);
 		profiler_record(6, "ln2");
 
-		if (model->transposed)
-			tensor_mma_transposed_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
-		else
-			tensor_mma_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
+		tensor_mma_transposed_2x2(mlp_fc, output, mlp->c_fc_weight, mlp->c_fc_bias);
 		tensor_assert_2d(mlp_fc, T, E * 4);
 		profiler_record(7, "c_fc");
 
 		gelua(mlp_fc);
 		profiler_record(8, "gelua");
 
-		if (model->transposed)
-			tensor_mma_transposed_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
-		else
-			tensor_mma_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
+		tensor_mma_transposed_2x2(hidden_state, mlp_fc, mlp->c_proj_weight, mlp->c_proj_bias);
 		profiler_record(9, "c_proj");
 		tensor_add(hidden_state, hidden_state, attn_residual);
 		profiler_record(10, "c_proj residual");
@@ -487,14 +443,10 @@ void gpt2_decode(struct gpt2 *model, int tok, int pos, tensor_t *output)
 void gpt2_generate(void *ctx, const char *text, int num, pick_token_t f, void *cb_ctx)
 {
 	struct gpt2 *model = ctx;
-	struct file *vocab;
 	int tok_sz;
 
 	size_t E = model->embeddings;
 	size_t C = model->context;
-
-	vocab = snapshot_vocab(model->ss);
-	assert(vocab);
 
 	uint64_t total_begin = profiler_now();
 
@@ -508,7 +460,7 @@ void gpt2_generate(void *ctx, const char *text, int num, pick_token_t f, void *c
 
 	int T = 0;
 	int tok;
-	while ((tok = vocab_decode(vocab, text, &tok_sz)) != -1) {
+	while ((tok = vocab_decode(model->gguf, text, &tok_sz)) != -1) {
 		printf("%.*s", tok_sz, text);
 		text += tok_sz;
 		assert(T < (int)C);
@@ -608,9 +560,6 @@ void gpt2_close(void *ctx)
 	tensor_free(model->state.logits);
 
 	kvcache_free(model->cache);
-
-	file_close(snapshot_param(model->ss));
-	file_close(snapshot_vocab(model->ss));
 
 	free(model);
 }

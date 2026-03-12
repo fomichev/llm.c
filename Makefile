@@ -35,10 +35,10 @@ FG=/home/sdf/src/FlameGraph
 
 all:
 	$(MAKE) build
-	./llmc gpt2_$(M).llmc In the morning I was able to
+	./llmc gpt2_$(M).gguf In the morning I was able to
 
 build:
-	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c models/$(MODEL)/$(MODEL).c model.c nn.c kvcache.c snapshot.c vocab.c tensor.c profiler.c $(LIBS) -o llmc
+	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c models/$(MODEL)/$(MODEL).c model.c nn.c kvcache.c gguf.c vocab.c tensor.c profiler.c $(LIBS) -o llmc
 
 check:
 	$(MAKE) build
@@ -46,17 +46,14 @@ check:
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/nn.c tensor.c nn.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/gguf.c gguf.c tensor.c $(LIBS) && ./a.out gpt2_$(M).gguf
-	SRAND48_SEED=1337 ./llmc gpt2_$(M).llmc < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M).txt
+	SRAND48_SEED=1337 ./llmc gpt2_$(M).gguf < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M).txt
 	diff models/gpt2/test/expected_$(M).txt models/gpt2/test/got_$(M).txt
 
 flamegraph:
 	$(MAKE) build O=0
-	perf record -F 99 -g -- ./llmc gpt2_$(M).llmc In the morning I was able to
+	perf record -F 99 -g -- ./llmc gpt2_$(M).gguf In the morning I was able to
 	perf script | $(FG)/stackcollapse-perf.pl > out.perf-folded
 	$(FG)/flamegraph.pl out.perf-folded > perf.svg
-
-convert:
-	models/gpt2/convert.py ~/src/gpt-2/pytorch_$(M) ~/src/gpt-2/models/$(M)/encoder.json gpt2_$(M)
 
 eval:
 	models/gpt2/eval.py ~/src/gpt-2/pytorch_$(M)

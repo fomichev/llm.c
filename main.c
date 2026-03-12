@@ -1,5 +1,5 @@
 #include "model.h"
-#include "snapshot.h"
+#include "gguf.h"
 #include "vocab.h"
 
 #include <stdio.h>
@@ -97,8 +97,7 @@ static size_t pick_top_k(tensor_t *logits, size_t k)
 
 static size_t on_token(void *ctx, tensor_t *logits)
 {
-	struct snapshot *ss = ctx;
-	struct file *vocab;
+	struct gguf *g = ctx;
 	const char *s;
 	size_t token;
 
@@ -108,8 +107,7 @@ static size_t on_token(void *ctx, tensor_t *logits)
 	token = pick_top_k(logits, 5);
 #endif
 
-	vocab = snapshot_vocab(ss);
-	s = vocab_encode(vocab, token);
+	s = vocab_encode(g, token);
 	printf("%s", s);
 	fflush(stdout);
 
@@ -143,34 +141,30 @@ void bt(int sig)
 int main(int argc, char *argv[])
 {
 	const struct model *m;
-	struct snapshot *ss;
-	char *model_name;
+	struct gguf *g;
+	const char *model_name;
 	void *ctx;
 
 	signal(SIGABRT, bt);
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <path.llmc> [prompt...]\n", argv[0]);
+		fprintf(stderr, "Usage: %s <model.gguf> [prompt...]\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "loading model from %s\n", argv[1]);
-	ss = snapshot_load(argv[1]);
-	if (!ss) {
+	g = gguf_load(argv[1]);
+	if (!g) {
 		fprintf(stderr, "failed to load model from '%s'\n", argv[1]);
 		return EXIT_FAILURE;
 	}
 
-	assert(snapshot_config_int(ss, "version") == 1);
-
-	model_name = snapshot_config_str(ss, "model");
+	model_name = gguf_get_str(g, "general.architecture");
 	m = find_model(model_name);
 	if (!m) {
 		fprintf(stderr, "unknown model '%s'\n", model_name);
-		free(model_name);
 		return EXIT_FAILURE;
 	}
-	free(model_name);
 
 	if (getenv("SRAND48_SEED")) {
 		srand48(atoi(getenv("SRAND48_SEED"))); /* reproducible output */
@@ -180,7 +174,7 @@ int main(int argc, char *argv[])
 		srand48(ts.tv_sec * 1000000000 + ts.tv_nsec);
 	}
 
-	ctx = m->load(ss);
+	ctx = m->load(g);
 	if (!ctx) {
 		fprintf(stderr, "failed to load model\n");
 		return EXIT_FAILURE;
@@ -200,7 +194,7 @@ int main(int argc, char *argv[])
 		}
 		inp[len] = '\0';
 
-		m->generate(ctx, inp, 250, on_token, ss);
+		m->generate(ctx, inp, 250, on_token, g);
 		free(inp);
 	} else if (argc >= 3) {
 		size_t sz = 0;
@@ -219,8 +213,8 @@ int main(int argc, char *argv[])
 			strcat(inp, argv[i]);
 		}
 
-		m->generate(ctx, inp, 500, on_token, ss);
+		m->generate(ctx, inp, 500, on_token, g);
 	}
 	m->close(ctx);
-	snapshot_close(ss);
+	gguf_close(g);
 }

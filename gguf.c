@@ -222,9 +222,17 @@ static void read_kv(struct reader *r, struct gguf_kv *kv)
 	case GGUF_TYPE_ARRAY:
 		kv->arr.elem_type = read_u32(r);
 		kv->arr.count = read_u64(r);
-		/* we don't store array values, just skip them */
-		for (uint64_t i = 0; i < kv->arr.count; i++)
-			skip_value(r, kv->arr.elem_type);
+		if (kv->arr.elem_type == GGUF_TYPE_STRING) {
+			struct gguf_str *strs = calloc(kv->arr.count, sizeof(*strs));
+			assert(strs);
+			for (uint64_t i = 0; i < kv->arr.count; i++)
+				strs[i] = read_str(r);
+			kv->arr.data = strs;
+		} else {
+			for (uint64_t i = 0; i < kv->arr.count; i++)
+				skip_value(r, kv->arr.elem_type);
+			kv->arr.data = NULL;
+		}
 		break;
 	default:
 		fprintf(stderr, "gguf: unknown kv type %u for key '%s'\n",
@@ -338,6 +346,14 @@ void gguf_close(struct gguf *g)
 		free(g->kv[i].key.str);
 		if (g->kv[i].type == GGUF_TYPE_STRING)
 			free(g->kv[i].str.str);
+		if (g->kv[i].type == GGUF_TYPE_ARRAY &&
+		    g->kv[i].arr.elem_type == GGUF_TYPE_STRING &&
+		    g->kv[i].arr.data) {
+			struct gguf_str *strs = g->kv[i].arr.data;
+			for (uint64_t j = 0; j < g->kv[i].arr.count; j++)
+				free(strs[j].str);
+			free(strs);
+		}
 	}
 	free(g->kv);
 
@@ -424,7 +440,7 @@ static const struct gguf_tensor_info *gguf_find_tensor(const struct gguf *g,
 	return NULL;
 }
 
-tensor_t *gguf_tensor(const struct gguf *g, const char *name, size_t ndim, ...)
+static tensor_t *gguf_tensor(const struct gguf *g, const char *name)
 {
 	const struct gguf_tensor_info *ti = gguf_find_tensor(g, name);
 	if (!ti) {
@@ -438,7 +454,6 @@ tensor_t *gguf_tensor(const struct gguf *g, const char *name, size_t ndim, ...)
 		return NULL;
 	}
 
-	/* compute total elements from the GGUF-stored dimensions */
 	size_t total_elements = 1;
 	for (uint32_t i = 0; i < ti->ndim; i++)
 		total_elements *= ti->dim[i];
@@ -447,24 +462,69 @@ tensor_t *gguf_tensor(const struct gguf *g, const char *name, size_t ndim, ...)
 	void *tensor_data = (uint8_t *)g->data + g->tensor_data_offset + ti->offset;
 
 	tensor_t *t = tensor_new_mapped(tensor_data, byte_size);
-
-	va_list ap;
-	va_start(ap, ndim);
-	size_t d1 = va_arg(ap, size_t);
-	size_t d2 = va_arg(ap, size_t);
-	size_t d3 = va_arg(ap, size_t);
-	size_t d4 = va_arg(ap, size_t);
-
-	switch (ndim) {
-	case 1: tensor_reshape_1d(t, d1); break;
-	case 2: tensor_reshape_2d(t, d1, d2); break;
-	case 3: tensor_reshape_3d(t, d1, d2, d3); break;
-	case 4: tensor_reshape_4d(t, d1, d2, d3, d4); break;
-	default: assert(0);
-	}
-	va_end(ap);
-
-	assert(t->totlen == total_elements);
+	t->totlen = total_elements;
 
 	return t;
+}
+
+tensor_t *gguf_tensor_1d(const struct gguf *g, size_t d1, const char *fmt, ...)
+{
+	char name[128];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(name, sizeof(name), fmt, ap);
+	va_end(ap);
+
+	tensor_t *t = gguf_tensor(g, name);
+	if (!t) return NULL;
+	assert(t->totlen == d1);
+	tensor_reshape_1d(t, d1);
+	return t;
+}
+
+tensor_t *gguf_tensor_2d(const struct gguf *g, size_t d1, size_t d2, const char *fmt, ...)
+{
+	char name[128];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(name, sizeof(name), fmt, ap);
+	va_end(ap);
+
+	tensor_t *t = gguf_tensor(g, name);
+	if (!t) return NULL;
+	assert(t->totlen == d1 * d2);
+	tensor_reshape_2d(t, d1, d2);
+	return t;
+}
+
+tensor_t *gguf_tensor_3d(const struct gguf *g, size_t d1, size_t d2, size_t d3, const char *fmt, ...)
+{
+	char name[128];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(name, sizeof(name), fmt, ap);
+	va_end(ap);
+
+	tensor_t *t = gguf_tensor(g, name);
+	if (!t) return NULL;
+	assert(t->totlen == d1 * d2 * d3);
+	tensor_reshape_3d(t, d1, d2, d3);
+	return t;
+}
+
+size_t gguf_get_arr_n(const struct gguf *g, const char *key)
+{
+	const struct gguf_kv *kv = gguf_find_kv(g, key);
+	assert(kv && kv->type == GGUF_TYPE_ARRAY);
+	return kv->arr.count;
+}
+
+const char *gguf_get_arr_str(const struct gguf *g, const char *key, size_t index)
+{
+	const struct gguf_kv *kv = gguf_find_kv(g, key);
+	assert(kv && kv->type == GGUF_TYPE_ARRAY);
+	assert(kv->arr.elem_type == GGUF_TYPE_STRING);
+	assert(index < kv->arr.count);
+	struct gguf_str *strs = kv->arr.data;
+	return strs[index].str;
 }
