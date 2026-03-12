@@ -71,3 +71,8 @@ echo "Downloading Q4_0..."
 curl -fSL "https://huggingface.co/RichardErkhov/openai-community_-_${HF_SHORT}-gguf/resolve/main/${HF_SHORT}.Q4_0.gguf" \
     -o "gpt2_${M}-Q4_0.gguf"
 echo "Done: gpt2_${M}-Q4_0.gguf"
+
+echo "Downloading Q4_K_S..."
+curl -fSL "https://huggingface.co/RichardErkhov/openai-community_-_${HF_SHORT}-gguf/resolve/main/${HF_SHORT}.Q4_K_S.gguf" \
+    -o "gpt2_${M}-Q4_K_S.gguf"
+echo "Done: gpt2_${M}-Q4_K_S.gguf"

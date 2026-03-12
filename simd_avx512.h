@@ -102,6 +102,22 @@ static inline void avx512_vector_u4_hi_to_f32(avx512_vector_t *dst, const uint8_
 	*dst = _mm512_cvtepi32_ps(biased);
 }
 
+static inline void avx512_vector_u4_lo_to_f32_unsigned(avx512_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadu_si128((const __m128i *)src);
+	__m128i lo8 = _mm_and_si128(raw, _mm_set1_epi8(0x0F));
+	__m512i lo32 = _mm512_cvtepu8_epi32(lo8);
+	*dst = _mm512_cvtepi32_ps(lo32);
+}
+
+static inline void avx512_vector_u4_hi_to_f32_unsigned(avx512_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadu_si128((const __m128i *)src);
+	__m128i hi8 = _mm_and_si128(_mm_srli_epi16(raw, 4), _mm_set1_epi8(0x0F));
+	__m512i hi32 = _mm512_cvtepu8_epi32(hi8);
+	*dst = _mm512_cvtepi32_ps(hi32);
+}
+
 static inline void avx512_vector_fma(avx512_vector_t *dst, avx512_vector_t *a, avx512_vector_t *b, avx512_vector_t *c)
 {
 	*dst = _mm512_fmadd_ps(*a, *b, *c);

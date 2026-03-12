@@ -51,6 +51,8 @@ check:
 	diff models/gpt2/test/expected_$(M).txt models/gpt2/test/got_$(M).txt
 	SRAND48_SEED=1337 ./llmc gpt2_$(M)-Q8_0.gguf < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M)-Q8_0.txt
 	diff models/gpt2/test/expected_$(M)-Q8_0.txt models/gpt2/test/got_$(M)-Q8_0.txt
+	SRAND48_SEED=1337 ./llmc gpt2_$(M)-Q4_K_S.gguf < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M)-Q4_K_S.txt
+	diff models/gpt2/test/expected_$(M)-Q4_K_S.txt models/gpt2/test/got_$(M)-Q4_K_S.txt
 
 flamegraph:
 	$(MAKE) build O=0

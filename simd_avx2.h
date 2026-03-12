@@ -102,6 +102,22 @@ static inline void avx2_vector_u4_hi_to_f32(avx2_vector_t *dst, const uint8_t *s
 	*dst = _mm256_cvtepi32_ps(biased);
 }
 
+static inline void avx2_vector_u4_lo_to_f32_unsigned(avx2_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadl_epi64((const __m128i *)src);
+	__m128i lo8 = _mm_and_si128(raw, _mm_set1_epi8(0x0F));
+	__m256i lo32 = _mm256_cvtepu8_epi32(lo8);
+	*dst = _mm256_cvtepi32_ps(lo32);
+}
+
+static inline void avx2_vector_u4_hi_to_f32_unsigned(avx2_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadl_epi64((const __m128i *)src);
+	__m128i hi8 = _mm_and_si128(_mm_srli_epi16(raw, 4), _mm_set1_epi8(0x0F));
+	__m256i hi32 = _mm256_cvtepu8_epi32(hi8);
+	*dst = _mm256_cvtepi32_ps(hi32);
+}
+
 static inline void avx2_vector_fma(avx2_vector_t *dst, avx2_vector_t *a, avx2_vector_t *b, avx2_vector_t *c)
 {
 	*dst = _mm256_fmadd_ps(*a, *b, *c);

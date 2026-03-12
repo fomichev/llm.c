@@ -100,6 +100,20 @@ static inline void cpu_vector_u4_hi_to_f32(cpu_vector_t *dst, const uint8_t *src
 	}
 }
 
+static inline void cpu_vector_u4_lo_to_f32_unsigned(cpu_vector_t *dst, const uint8_t *src)
+{
+	for (size_t i = 0; i < CPU_BATCH; i++) {
+		dst->v[i] = (float)(src[i] & 0x0F);
+	}
+}
+
+static inline void cpu_vector_u4_hi_to_f32_unsigned(cpu_vector_t *dst, const uint8_t *src)
+{
+	for (size_t i = 0; i < CPU_BATCH; i++) {
+		dst->v[i] = (float)(src[i] >> 4);
+	}
+}
+
 static inline void cpu_vector_fma(cpu_vector_t *dst, cpu_vector_t *a, cpu_vector_t *b, cpu_vector_t *c)
 {
 	for (size_t i = 0; i < CPU_BATCH; i++) {

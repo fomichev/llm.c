@@ -252,7 +252,7 @@ void tensor_pick_rows(tensor_t *dst, const tensor_t *src, const int *rows, size_
 
 	size_t m = src->dim[1];
 
-	if (src->type == TENSOR_Q8_0 || src->type == TENSOR_Q4_0) {
+	if (src->type != TENSOR_F32) {
 		for (size_t i = 0; i < num; i++) {
 			assert(rows[i] < src->dim[0]);
 			dequant_row(src->qdata, src->type, rows[i],

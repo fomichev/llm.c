@@ -159,6 +159,28 @@ static inline void vector_u4_hi_to_f32(vector_t *dst, const uint8_t *src)
 #endif
 }
 
+static inline void vector_u4_lo_to_f32_unsigned(vector_t *dst, const uint8_t *src)
+{
+#if defined(__AVX512F__)
+    avx512_vector_u4_lo_to_f32_unsigned(dst, src);
+#elif defined(__AVX2__)
+    avx2_vector_u4_lo_to_f32_unsigned(dst, src);
+#else
+    cpu_vector_u4_lo_to_f32_unsigned(dst, src);
+#endif
+}
+
+static inline void vector_u4_hi_to_f32_unsigned(vector_t *dst, const uint8_t *src)
+{
+#if defined(__AVX512F__)
+    avx512_vector_u4_hi_to_f32_unsigned(dst, src);
+#elif defined(__AVX2__)
+    avx2_vector_u4_hi_to_f32_unsigned(dst, src);
+#else
+    cpu_vector_u4_hi_to_f32_unsigned(dst, src);
+#endif
+}
+
 static inline void vector_fma(vector_t *dst, vector_t *a, vector_t *b, vector_t *c)
 {
 #if defined(__AVX512F__)

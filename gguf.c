@@ -1,4 +1,5 @@
 #include "gguf.h"
+#include "quant.h"
 
 #include <fcntl.h>
 #include <stdarg.h>
@@ -34,8 +35,12 @@ enum gguf_type {
 /* ggml tensor data types */
 enum ggml_type {
 	GGML_TYPE_F32  = 0,
+	GGML_TYPE_F16  = 1,
 	GGML_TYPE_Q4_0 = 2,
 	GGML_TYPE_Q8_0 = 8,
+	GGML_TYPE_Q4_K = 12,
+	GGML_TYPE_Q5_K = 13,
+	GGML_TYPE_Q6_K = 14,
 };
 
 struct gguf_str {
@@ -458,10 +463,24 @@ static tensor_t *gguf_tensor(const struct gguf *g, const char *name)
 	switch (ti->type) {
 	case GGML_TYPE_F32:
 		return tensor_new_mapped(tensor_data, total_elements, TENSOR_F32);
+	case GGML_TYPE_F16: {
+		const uint16_t *f16_data = (const uint16_t *)tensor_data;
+		float *f32_data = malloc(total_elements * sizeof(float));
+		assert(f32_data);
+		for (size_t i = 0; i < total_elements; i++)
+			f32_data[i] = f16_to_f32(f16_data[i]);
+		return tensor_new_mapped(f32_data, total_elements, TENSOR_F32);
+	}
 	case GGML_TYPE_Q8_0:
 		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q8_0);
 	case GGML_TYPE_Q4_0:
 		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q4_0);
+	case GGML_TYPE_Q4_K:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q4_K);
+	case GGML_TYPE_Q5_K:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q5_K);
+	case GGML_TYPE_Q6_K:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q6_K);
 	default:
 		fprintf(stderr, "gguf: tensor '%s' is type %u, not supported\n",
 			name, ti->type);

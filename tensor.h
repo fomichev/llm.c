@@ -11,6 +11,9 @@ enum tensor_dtype {
 	TENSOR_F32,
 	TENSOR_Q8_0,
 	TENSOR_Q4_0,
+	TENSOR_Q4_K,
+	TENSOR_Q5_K,
+	TENSOR_Q6_K,
 };
 
 typedef struct {
