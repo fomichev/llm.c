@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <stdint.h>
 
 typedef float scalar_t;
 
@@ -122,6 +123,50 @@ static inline void vector_tanh(vector_t *dst, vector_t *lhs)
     avx2_vector_tanh(dst, lhs);
 #else
     cpu_vector_tanh(dst, lhs);
+#endif
+}
+
+static inline void vector_i8_to_f32(vector_t *dst, const int8_t *src)
+{
+#if defined(__AVX512F__)
+    avx512_vector_i8_to_f32(dst, src);
+#elif defined(__AVX2__)
+    avx2_vector_i8_to_f32(dst, src);
+#else
+    cpu_vector_i8_to_f32(dst, src);
+#endif
+}
+
+static inline void vector_u4_lo_to_f32(vector_t *dst, const uint8_t *src)
+{
+#if defined(__AVX512F__)
+    avx512_vector_u4_lo_to_f32(dst, src);
+#elif defined(__AVX2__)
+    avx2_vector_u4_lo_to_f32(dst, src);
+#else
+    cpu_vector_u4_lo_to_f32(dst, src);
+#endif
+}
+
+static inline void vector_u4_hi_to_f32(vector_t *dst, const uint8_t *src)
+{
+#if defined(__AVX512F__)
+    avx512_vector_u4_hi_to_f32(dst, src);
+#elif defined(__AVX2__)
+    avx2_vector_u4_hi_to_f32(dst, src);
+#else
+    cpu_vector_u4_hi_to_f32(dst, src);
+#endif
+}
+
+static inline void vector_fma(vector_t *dst, vector_t *a, vector_t *b, vector_t *c)
+{
+#if defined(__AVX512F__)
+    avx512_vector_fma(dst, a, b, c);
+#elif defined(__AVX2__)
+    avx2_vector_fma(dst, a, b, c);
+#else
+    cpu_vector_fma(dst, a, b, c);
 #endif
 }
 

@@ -7,8 +7,16 @@
 
 #include "simd.h"
 
+enum tensor_dtype {
+	TENSOR_F32,
+	TENSOR_Q8_0,
+	TENSOR_Q4_0,
+};
+
 typedef struct {
-	scalar_t *data;
+	scalar_t *data; /* TENSOR_F32 */
+	void *qdata; /* !TENSOR_F32 */
+	enum tensor_dtype type;
 	uint64_t totlen;
 	uint64_t maxcap;
 	uint64_t dim[4];
@@ -22,7 +30,7 @@ tensor_t *tensor_new_2d(size_t d1, size_t d2, ...);
 tensor_t *tensor_new_3d(size_t d1, size_t d2, size_t d3, ...);
 void tensor_free(tensor_t *t);
 
-tensor_t *tensor_new_mapped(void *data, size_t totlen);
+tensor_t *tensor_new_mapped(void *data, size_t totlen, enum tensor_dtype type);
 void tensor_free_mapped(const tensor_t *t);
 
 char *tensor_to_string(const tensor_t *t);
@@ -117,6 +125,7 @@ do { \
 	(view)->totlen = (t)->totlen / (t)->dim[0]; \
 	(view)->maxcap = (t)->totlen; \
 	(view)->data = &(t)->data[(view)->totlen * (idx)]; \
+	(view)->type = (t)->type; \
 	(view)->ndim = (t)->ndim - 1; \
 	(view)->dim[0] = (t)->dim[1]; \
 	(view)->dim[1] = (t)->dim[2]; \

@@ -75,7 +75,3 @@ Possible bigger GPT2-2 sizes (M= argument):
 * 355M, 1.5G on disk, 100ms per token
 * 774M, 3.1G on disk, 200ms per token
 * 1558M, 6.0G on disk, 500ms per token
-
-Note that about 3x the amount of disk space is required. The script
-downloads the model from HuggingFace and converts it to the mmap-able
-format that llm.c can understand.

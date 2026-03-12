@@ -31,10 +31,11 @@ enum gguf_type {
 	GGUF_TYPE_FLOAT64 = 12,
 };
 
-/* tensor data types (only f32 supported for now) */
+/* ggml tensor data types */
 enum ggml_type {
 	GGML_TYPE_F32  = 0,
-	GGML_TYPE_F16  = 1,
+	GGML_TYPE_Q4_0 = 2,
+	GGML_TYPE_Q8_0 = 8,
 };
 
 struct gguf_str {
@@ -448,23 +449,24 @@ static tensor_t *gguf_tensor(const struct gguf *g, const char *name)
 		return NULL;
 	}
 
-	if (ti->type != GGML_TYPE_F32) {
-		fprintf(stderr, "gguf: tensor '%s' is type %u, only f32 supported\n",
-			name, ti->type);
-		return NULL;
-	}
-
 	size_t total_elements = 1;
 	for (uint32_t i = 0; i < ti->ndim; i++)
 		total_elements *= ti->dim[i];
-	size_t byte_size = total_elements * sizeof(scalar_t);
 
 	void *tensor_data = (uint8_t *)g->data + g->tensor_data_offset + ti->offset;
 
-	tensor_t *t = tensor_new_mapped(tensor_data, byte_size);
-	t->totlen = total_elements;
-
-	return t;
+	switch (ti->type) {
+	case GGML_TYPE_F32:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_F32);
+	case GGML_TYPE_Q8_0:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q8_0);
+	case GGML_TYPE_Q4_0:
+		return tensor_new_mapped(tensor_data, total_elements, TENSOR_Q4_0);
+	default:
+		fprintf(stderr, "gguf: tensor '%s' is type %u, not supported\n",
+			name, ti->type);
+		return NULL;
+	}
 }
 
 tensor_t *gguf_tensor_1d(const struct gguf *g, size_t d1, const char *fmt, ...)

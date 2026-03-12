@@ -1,0 +1,50 @@
+Alan Turing was born on June 23, 1912, in London. He studied mathematics at Cambridge and later worked at Princeton. During World War II, Turing played a crucial role in breaking the Enigma cipher at Bletchley Park. His work on the theoretical foundations of computation, particularly the concept of a universal machine, laid the groundwork for modern computer science. After the war, he worked on early computer designs at the National Physical Laboratory and later at the University of Manchester. Turing also made significant contributions to mathematical biology, particularly in his study of morphogenesis and pattern formation. He proposed a chemical mechanism by which organisms develop complex structures from simple initial conditions. His 1950 paper on artificial intelligence introduced what became known as the Turing test, a method for evaluating whether a machine can exhibit intelligent behavior indistinguishable from a human. The concept of artificial intelligence has since evolved dramatically, with modern systems capable of tasks ranging from natural language processing to image recognition. Early pioneers like John McCarthy, Marvin Minsky, and Herbert Simon helped establish the field as a distinct academic discipline during the 1956 Dartmouth Conference. Throughout the following decades, research progressed through periods of optimism and funding, interspersed with disappointing setbacks. The development of expert systems in the 1980s brought renewed commercial interest, while neural networks experienced a resurgence in the 2010s driven by advances in hardware and the availability of large datasets. These breakthroughs enabled researchers to
+
+-
+
+-
+
+- - - -
+
+- - - - - -
+
+- - - - - -
+
+- - - - - - - - -
+
+- - - - - - - - -
+
+- - - - - - - - -
+
+- - - - - - - - -
+
+- - - - - - - -
+
+- - - - - - - - - -
+
+- - - - - - - - -
+
+- - - - - - - - - - -
+
+- - - - - - - -
+
+- - - - - - - -
+
+- - - - - - - - - - -
+
+- - - - - - - - - -
+
+- - - - - - - - - -
+
+- - - - - - - - - - - -
+
+- - - - - - - - -
+
+- - - - - - - - - -
+
+- - - - - - - - - - - -
+
+- - - - - - - - - -
+
+- - - - - - - - - -
+

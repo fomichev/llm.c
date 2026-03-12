@@ -63,4 +63,4 @@ dkms.conf
 /perf.data.old
 /out.perf-folded
 /encoder_124M.json
-/got_*.txt
+got_*.txt

@@ -77,6 +77,36 @@ static inline void avx512_vector_tanh(avx512_vector_t *dst, avx512_vector_t *lhs
 #endif
 }
 
+static inline void avx512_vector_i8_to_f32(avx512_vector_t *dst, const int8_t *src)
+{
+	__m128i qi8 = _mm_loadu_si128((const __m128i *)src);
+	__m512i qi32 = _mm512_cvtepi8_epi32(qi8);
+	*dst = _mm512_cvtepi32_ps(qi32);
+}
+
+static inline void avx512_vector_u4_lo_to_f32(avx512_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadu_si128((const __m128i *)src);
+	__m128i lo8 = _mm_and_si128(raw, _mm_set1_epi8(0x0F));
+	__m512i lo32 = _mm512_cvtepu8_epi32(lo8);
+	__m512i biased = _mm512_sub_epi32(lo32, _mm512_set1_epi32(8));
+	*dst = _mm512_cvtepi32_ps(biased);
+}
+
+static inline void avx512_vector_u4_hi_to_f32(avx512_vector_t *dst, const uint8_t *src)
+{
+	__m128i raw = _mm_loadu_si128((const __m128i *)src);
+	__m128i hi8 = _mm_and_si128(_mm_srli_epi16(raw, 4), _mm_set1_epi8(0x0F));
+	__m512i hi32 = _mm512_cvtepu8_epi32(hi8);
+	__m512i biased = _mm512_sub_epi32(hi32, _mm512_set1_epi32(8));
+	*dst = _mm512_cvtepi32_ps(biased);
+}
+
+static inline void avx512_vector_fma(avx512_vector_t *dst, avx512_vector_t *a, avx512_vector_t *b, avx512_vector_t *c)
+{
+	*dst = _mm512_fmadd_ps(*a, *b, *c);
+}
+
 static inline scalar_t avx512_vector_reduce_sum(avx512_vector_t *lhs)
 {
 	__m256 v5 = _mm256_add_ps(_mm512_extractf32x8_ps(*lhs, 0), _mm512_extractf32x8_ps(*lhs, 1));

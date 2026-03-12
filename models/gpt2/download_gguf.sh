@@ -33,6 +33,9 @@ case "$M" in
     *) echo "Unknown model size: $M (expected 124M, 355M, 774M, 1558M)" >&2; exit 1 ;;
 esac
 
+# Short name used in HF repo filenames (strip "openai-community/" prefix)
+HF_SHORT="${MODEL_NAME#openai-community/}"
+
 CONVERTER="$LLAMA_CPP_DIR/convert_hf_to_gguf.py"
 if [ ! -f "$CONVERTER" ]; then
     echo "Error: $CONVERTER not found" >&2
@@ -56,5 +59,15 @@ t.save_pretrained('$TMPDIR')
 
 echo "Converting to GGUF f32..."
 python3 "$CONVERTER" "$TMPDIR" --outtype f32 --outfile "gpt2_${M}.gguf"
-
 echo "Done: gpt2_${M}.gguf"
+
+# Download pre-quantized variants from Hugging Face
+echo "Downloading Q8_0..."
+curl -fSL "https://huggingface.co/DevQuasar/openai-community.${HF_SHORT}-GGUF/resolve/main/openai-community.${HF_SHORT}.Q8_0.gguf" \
+    -o "gpt2_${M}-Q8_0.gguf"
+echo "Done: gpt2_${M}-Q8_0.gguf"
+
+echo "Downloading Q4_0..."
+curl -fSL "https://huggingface.co/RichardErkhov/openai-community_-_${HF_SHORT}-gguf/resolve/main/${HF_SHORT}.Q4_0.gguf" \
+    -o "gpt2_${M}-Q4_0.gguf"
+echo "Done: gpt2_${M}-Q4_0.gguf"

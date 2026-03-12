@@ -38,16 +38,19 @@ all:
 	./llmc gpt2_$(M).gguf In the morning I was able to
 
 build:
-	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c models/$(MODEL)/$(MODEL).c model.c nn.c kvcache.c gguf.c vocab.c tensor.c profiler.c $(LIBS) -o llmc
+	$(CC) $(LDFLAGS) $(CFLAGS) -g main.c models/$(MODEL)/$(MODEL).c model.c nn.c kvcache.c gguf.c vocab.c tensor.c quant.c profiler.c $(LIBS) -o llmc
 
 check:
 	$(MAKE) build
-	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c $(LIBS) && ./a.out
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/tensor.c tensor.c quant.c $(LIBS) && ./a.out
 	$(CC) $(LDFLAGS) $(CFLAGS) -g test/simd.c $(LIBS) && ./a.out
-	$(CC) $(LDFLAGS) $(CFLAGS) -g test/nn.c tensor.c nn.c $(LIBS) && ./a.out
-	$(CC) $(LDFLAGS) $(CFLAGS) -g test/gguf.c gguf.c tensor.c $(LIBS) && ./a.out gpt2_$(M).gguf
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/nn.c tensor.c quant.c nn.c $(LIBS) && ./a.out
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/gguf.c gguf.c tensor.c quant.c $(LIBS) && ./a.out gpt2_$(M).gguf
+	$(CC) $(LDFLAGS) $(CFLAGS) -g test/quant.c tensor.c quant.c $(LIBS) && ./a.out
 	SRAND48_SEED=1337 ./llmc gpt2_$(M).gguf < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M).txt
 	diff models/gpt2/test/expected_$(M).txt models/gpt2/test/got_$(M).txt
+	SRAND48_SEED=1337 ./llmc gpt2_$(M)-Q8_0.gguf < models/gpt2/test/prefill_$(M).txt > models/gpt2/test/got_$(M)-Q8_0.txt
+	diff models/gpt2/test/expected_$(M)-Q8_0.txt models/gpt2/test/got_$(M)-Q8_0.txt
 
 flamegraph:
 	$(MAKE) build O=0

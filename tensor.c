@@ -1,10 +1,11 @@
 #include "tensor.h"
+#include "quant.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
 #include <cblas.h>
 
-static tensor_t *tensor_new_raw(void *data, size_t ndim)
+static tensor_t *tensor_alloc(void *data, size_t ndim)
 {
 	uint32_t ndim_sz = ndim;
 	tensor_t *t;
@@ -38,7 +39,7 @@ tensor_t *tensor_new_zero(size_t ndim, ...)
 	size_t len = 1;
 	va_list ap;
 
-	t = tensor_new_raw(NULL, ndim);
+	t = tensor_alloc(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
@@ -60,7 +61,7 @@ tensor_t *tensor_new(size_t ndim, ...)
 	size_t len = 1;
 	va_list ap;
 
-	t = tensor_new_raw(NULL, ndim);
+	t = tensor_alloc(NULL, ndim);
 	va_start(ap, ndim);
 	for (size_t i = 0; i < ndim; i++) {
 		t->dim[i] = va_arg(ap, size_t);
@@ -97,7 +98,7 @@ tensor_t *tensor_new_1d(size_t d1, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = tensor_new_raw(NULL, 1);
+	t = tensor_alloc(NULL, 1);
 	t->dim[0] = d1;
 	t->totlen = d1;
 
@@ -113,7 +114,7 @@ tensor_t *tensor_new_2d(size_t d1, size_t d2, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = tensor_new_raw(NULL, 2);
+	t = tensor_alloc(NULL, 2);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->totlen = d1 * d2;
@@ -130,7 +131,7 @@ tensor_t *tensor_new_3d(size_t d1, size_t d2, size_t d3, ...)
 	tensor_t *t;
 	va_list ap;
 
-	t = tensor_new_raw(NULL, 3);
+	t = tensor_alloc(NULL, 3);
 	t->dim[0] = d1;
 	t->dim[1] = d2;
 	t->dim[2] = d3;
@@ -149,13 +150,19 @@ void tensor_free(tensor_t *t)
 	free(t);
 }
 
-tensor_t *tensor_new_mapped(void *data, size_t totlen)
+tensor_t *tensor_new_mapped(void *data, size_t totlen, enum tensor_dtype type)
 {
 	tensor_t *t;
 
-	t = tensor_new_raw(data, 0);
+	t = tensor_alloc(NULL, 0);
+	t->type = type;
 	t->totlen = totlen;
 	t->maxcap = totlen;
+
+	if (type == TENSOR_F32)
+		t->data = data;
+	else
+		t->qdata = data;
 
 	return t;
 }
@@ -245,15 +252,23 @@ void tensor_pick_rows(tensor_t *dst, const tensor_t *src, const int *rows, size_
 
 	size_t m = src->dim[1];
 
-	for (size_t i = 0; i < num; i++) {
-		tensor_t row;
+	if (src->type == TENSOR_Q8_0 || src->type == TENSOR_Q4_0) {
+		for (size_t i = 0; i < num; i++) {
+			assert(rows[i] < src->dim[0]);
+			dequant_row(src->qdata, src->type, rows[i],
+				    &dst->data[i * m], m);
+		}
+	} else {
+		for (size_t i = 0; i < num; i++) {
+			tensor_t row;
 
-		assert(rows[i] < tensor_len(src));
+			assert(rows[i] < tensor_len(src));
 
-		tensor_at(src, rows[i], &row);
-		tensor_assert_1d(&row, m);
+			tensor_at(src, rows[i], &row);
+			tensor_assert_1d(&row, m);
 
-		memcpy(&dst->data[i * m], row.data, sizeof(scalar_t) * m);
+			memcpy(&dst->data[i * m], row.data, sizeof(scalar_t) * m);
+		}
 	}
 
 	dst->dim[0] = num;
@@ -537,6 +552,44 @@ void tensor_mma_2x2(
 		    /*ldc=*/n);
 }
 
+static void tensor_mma_transposed_2x2_quant(
+	tensor_t *ret,
+	const tensor_t *lhs,
+	const tensor_t *rhs,
+	const tensor_t *add)
+{
+	size_t m = lhs->dim[0];
+	size_t k = lhs->dim[1];
+	size_t n = rhs->dim[0];
+
+	ret->ndim = 2;
+	ret->dim[0] = m;
+	ret->dim[1] = n;
+	ret->totlen = m * n;
+
+	if (add) {
+		if (add->ndim == 2) {
+			assert(add->dim[0] == m && add->dim[1] == n);
+			memcpy(ret->data, add->data, add->totlen * sizeof(scalar_t));
+		} else {
+			assert(add->ndim == 1);
+			assert(n == add->totlen);
+			for (size_t i = 0; i < m; i++)
+				memcpy(&ret->data[i * n], add->data, add->totlen * sizeof(scalar_t));
+		}
+	} else {
+		memset(ret->data, 0, ret->totlen * sizeof(scalar_t));
+	}
+
+	for (size_t i = 0; i < m; i++) {
+		const float *lhs_row = &lhs->data[i * k];
+		for (size_t j = 0; j < n; j++) {
+			ret->data[i * n + j] += dot_f32_quant(lhs_row,
+					rhs->qdata, rhs->type, j, k);
+		}
+	}
+}
+
 void tensor_mma_transposed_2x2(
 	tensor_t *ret,
 	const tensor_t *lhs,
@@ -546,6 +599,11 @@ void tensor_mma_transposed_2x2(
 	assert(ret != lhs && ret != rhs);
 	assert(rhs->ndim == 2 && lhs->ndim == 2);
 	assert(lhs->dim[1] == rhs->dim[1]);
+
+	if (rhs->type != TENSOR_F32) {
+		tensor_mma_transposed_2x2_quant(ret, lhs, rhs, add);
+		return;
+	}
 
 	size_t m = lhs->dim[0];
 	size_t k = lhs->dim[1];
