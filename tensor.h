@@ -167,10 +167,9 @@ do { \
 	assert((dst)->ndim == 2); \
 	assert((dst)->dim[1] == (src)->totlen); \
 	assert((dst_idx) < (dst)->dim[0]); \
-	tensor_set_inner_raw((dst), (dst_idx), (src)); \
+	memcpy(&(dst)->data[(dst_idx) * (dst)->dim[1]], (src)->data, (src)->totlen * sizeof(scalar_t)); \
 } while (0)
 
-void tensor_set_inner_raw(tensor_t *dst, size_t dst_idx, const tensor_t *src);
 void tensor_copy(tensor_t *dst, const tensor_t *src);
 void tensor_add(
 	tensor_t *ret,

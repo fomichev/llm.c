@@ -305,11 +305,6 @@ void tensor_set(tensor_t *ret, scalar_t val)
 	}
 }
 
-void tensor_set_inner_raw(tensor_t *dst, size_t dst_idx, const tensor_t *src)
-{
-	memcpy(&dst->data[dst_idx * dst->dim[1]], src->data, src->totlen * sizeof(scalar_t));
-}
-
 void tensor_copy(tensor_t *dst, const tensor_t *src)
 {
 	assert(dst->totlen == src->totlen);
