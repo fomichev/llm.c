@@ -338,7 +338,7 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	}
 }
 
-static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output, enum kv_mode mode)
+static void gpt2_forward(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output, enum kv_mode mode)
 {
 	size_t E = model->embeddings;
 	size_t C = model->context;
@@ -421,7 +421,7 @@ static void gpt2_eval_inner(struct gpt2 *model, int *tok, int *pos, size_t T, te
 
 void gpt2_prefill(struct gpt2 *model, int *tok, int *pos, size_t T, tensor_t *output)
 {
-	gpt2_eval_inner(model, tok, pos, T, output, KV_PREFILL);
+	gpt2_forward(model, tok, pos, T, output, KV_PREFILL);
 	model->cache->size = T;
 }
 
@@ -436,7 +436,7 @@ void gpt2_decode(struct gpt2 *model, int tok, int pos, tensor_t *output)
 	if (pos >= (int)model->cache->context)
 		pos = model->cache->size;
 
-	gpt2_eval_inner(model, &tok, &pos, 1, output, KV_DECODE);
+	gpt2_forward(model, &tok, &pos, 1, output, KV_DECODE);
 	model->cache->size++;
 }
 
