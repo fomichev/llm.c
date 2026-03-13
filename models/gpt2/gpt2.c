@@ -58,8 +58,6 @@ struct gpt2 {
 		tensor_t *positions;
 		tensor_t *tokens_attn;
 		tensor_t *qh; /* heads X from all tokens */
-		tensor_t *kh; /* heads X from all tokens */
-		tensor_t *vh; /* heads X from all tokens */
 		tensor_t *masked_attn;
 		tensor_t *attn;
 		tensor_t *attn_residual;
@@ -130,8 +128,6 @@ void *gpt2_load(struct gguf *g)
 	model->state.positions = tensor_new_zero(2, C, E);
 	model->state.tokens_attn = tensor_new_zero(2, C, E * 3);
 	model->state.qh = tensor_new_zero(2, C, HLEN);
-	model->state.kh = tensor_new_zero(2, C, HLEN);
-	model->state.vh = tensor_new_zero(2, C, HLEN);
 	model->state.masked_attn = tensor_new_zero(2, C, C);
 	model->state.attn = tensor_new_zero(2, C, E);
 	model->state.attn_residual = tensor_new_zero(2, C, E);
@@ -147,8 +143,6 @@ void *gpt2_load(struct gguf *g)
 	totmem += model->state.positions->maxcap;
 	totmem += model->state.tokens_attn->maxcap;
 	totmem += model->state.qh->maxcap;
-	totmem += model->state.kh->maxcap;
-	totmem += model->state.vh->maxcap;
 	totmem += model->state.masked_attn->maxcap;
 	totmem += model->state.attn->maxcap;
 	totmem += model->state.attn_residual->maxcap;
@@ -171,13 +165,11 @@ void *gpt2_load(struct gguf *g)
 static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, size_t l, enum kv_mode mode)
 {
 	tensor_t *qh = model->state.qh;
-	tensor_t *kh = model->state.kh;
-	tensor_t *vh = model->state.vh;
 	tensor_t *masked_attn = model->state.masked_attn;
 
 	struct kvcache *cache = model->cache;
 
-	bool decode = cache && mode == KV_DECODE;
+	bool decode = mode == KV_DECODE;
 	bool prefill = !decode;
 
 	size_t T = tensor_len(input);
@@ -192,8 +184,6 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	}
 
 	tensor_resize(qh, T);
-	tensor_resize(kh, AT);
-	tensor_resize(vh, AT);
 	tensor_resize_2d(masked_attn, AT, AT);
 
 	/*
@@ -216,8 +206,9 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 	 */
 	for (size_t h_idx = 0; h_idx < H; h_idx++) {
 		tensor_t cache_k, cache_v;
-		tensor_t *kh_src = kh;
-		tensor_t *vh_src = vh;
+
+		kvcache_get_k(cache, l, h_idx, &cache_k);
+		kvcache_get_v(cache, l, h_idx, &cache_v);
 
 		if (decode) {
 			tensor_t tok;
@@ -231,36 +222,20 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 			tensor_at(&q, h_idx, &q);
 			tensor_set_inner(qh, 0, &q);
 
-			/* K: get contiguous (C, HLEN) view, write new token */
-			kvcache_get_k(cache, l, h_idx, &cache_k);
-
+			/* K: write new token into cache */
 			tensor_t k;
 			tensor_at(&tok, 1, &k);
 			tensor_reshape_2d(&k, H, HLEN);
 			tensor_at(&k, h_idx, &k);
 			tensor_set_inner(&cache_k, cache->size, &k);
 
-			tensor_resize(&cache_k, AT);
-			kh_src = &cache_k;
-
 			/* V: same pattern */
-			kvcache_get_v(cache, l, h_idx, &cache_v);
-
 			tensor_t v;
 			tensor_at(&tok, 2, &v);
 			tensor_reshape_2d(&v, H, HLEN);
 			tensor_at(&v, h_idx, &v);
 			tensor_set_inner(&cache_v, cache->size, &v);
-
-			tensor_resize(&cache_v, AT);
-			vh_src = &cache_v;
 		} else {
-			/* Prefill path */
-			if (cache) {
-				kvcache_get_k(cache, l, h_idx, &cache_k);
-				kvcache_get_v(cache, l, h_idx, &cache_v);
-			}
-
 			for (size_t t_idx = 0; t_idx < T; t_idx++) {
 				tensor_t tok;
 				tensor_at(input, t_idx, &tok);
@@ -276,34 +251,23 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 				tensor_at(&tok, 1, &k);
 				tensor_reshape_2d(&k, H, HLEN);
 				tensor_at(&k, h_idx, &k);
-				if (cache)
-					tensor_set_inner(&cache_k, t_idx, &k);
-				else
-					tensor_set_inner(kh, t_idx, &k);
+				tensor_set_inner(&cache_k, t_idx, &k);
 
 				tensor_t v;
 				tensor_at(&tok, 2, &v);
 				tensor_reshape_2d(&v, H, HLEN);
 				tensor_at(&v, h_idx, &v);
-				if (cache)
-					tensor_set_inner(&cache_v, t_idx, &v);
-				else
-					tensor_set_inner(vh, t_idx, &v);
-			}
-
-			if (cache) {
-				tensor_resize(&cache_k, AT);
-				kh_src = &cache_k;
-
-				tensor_resize(&cache_v, AT);
-				vh_src = &cache_v;
+				tensor_set_inner(&cache_v, t_idx, &v);
 			}
 		}
 
+		tensor_resize(&cache_k, AT);
+		tensor_resize(&cache_v, AT);
+
 		tensor_assert_2d(qh, T, HLEN);
-		tensor_assert_2d(kh_src, AT, HLEN);
-		tensor_assert_2d(vh_src, AT, HLEN);
-		tensor_mma_transposed_2x2(masked_attn, qh, kh_src, NULL);
+		tensor_assert_2d(&cache_k, AT, HLEN);
+		tensor_assert_2d(&cache_v, AT, HLEN);
+		tensor_mma_transposed_2x2(masked_attn, qh, &cache_k, NULL);
 		tensor_assert_2d(masked_attn, T, AT);
 		tensor_div_scalar(masked_attn, masked_attn, model->hlen_sq);
 
@@ -320,9 +284,9 @@ static void transformer(struct gpt2 *model, tensor_t *input, tensor_t *output, s
 		softmax_2d(masked_attn);
 
 		tensor_assert_2d(masked_attn, T, AT);
-		tensor_assert_2d(vh_src, AT, HLEN);
+		tensor_assert_2d(&cache_v, AT, HLEN);
 
-		tensor_mma_2x2(qh, masked_attn, vh_src, NULL);
+		tensor_mma_2x2(qh, masked_attn, &cache_v, NULL);
 		tensor_assert_2d(qh, T, HLEN);
 
 		for (size_t t_idx = prefill ? 0 : AT - 1; t_idx < AT; t_idx++) {
@@ -551,8 +515,6 @@ void gpt2_close(void *ctx)
 	tensor_free(model->state.positions);
 	tensor_free(model->state.tokens_attn);
 	tensor_free(model->state.qh);
-	tensor_free(model->state.kh);
-	tensor_free(model->state.vh);
 	tensor_free(model->state.masked_attn);
 	tensor_free(model->state.attn);
 	tensor_free(model->state.attn_residual);
